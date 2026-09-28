@@ -17,6 +17,8 @@ ensureColumn('users', 'banned_at', 'TIMESTAMP'); // suspendido por moderación
 ensureColumn('reports', 'status', "TEXT DEFAULT 'open'"); // 'open' | 'dismissed' | 'actioned'
 ensureColumn('reports', 'reviewed_at', 'TIMESTAMP');
 ensureColumn('reports', 'reviewed_by', 'INTEGER');
+ensureColumn('users', 'banned_until', 'TIMESTAMP'); // ban temporal (moderación automática)
+ensureColumn('ip_bans', 'expires_at', 'TIMESTAMP'); // NULL = permanente
 db.exec('CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at)');
 
 // Nadie está en línea al arrancar el servidor
@@ -40,12 +42,32 @@ export interface UserRow {
   created_at: string;
 }
 
+/** Ban vigente de una cuenta: permanente (banned_at) o temporal (banned_until en el futuro). */
+export function userBan(userId: number): { permanent: boolean; until: string | null } | null {
+  const u = db
+    .prepare(
+      `SELECT banned_at, CASE WHEN banned_until > datetime('now') THEN banned_until END AS until FROM users WHERE id = ?`,
+    )
+    .get(userId) as { banned_at: string | null; until: string | null } | undefined;
+  if (!u || (!u.banned_at && !u.until)) return null;
+  return { permanent: !!u.banned_at, until: u.banned_at ? null : u.until };
+}
+
 export function isUserBanned(userId: number): boolean {
-  return !!db.prepare('SELECT 1 FROM users WHERE id = ? AND banned_at IS NOT NULL').get(userId);
+  return userBan(userId) !== null;
 }
 
 export function isIpBanned(ipHash: string): boolean {
-  return !!db.prepare('SELECT 1 FROM ip_bans WHERE ip_hash = ?').get(ipHash);
+  return !!db
+    .prepare(`SELECT 1 FROM ip_bans WHERE ip_hash = ? AND (expires_at IS NULL OR expires_at > datetime('now'))`)
+    .get(ipHash);
+}
+
+/** Mensaje para el usuario suspendido, con la fecha de fin si es temporal. */
+export function banMessage(ban: { permanent: boolean; until: string | null }): string {
+  return ban.permanent
+    ? 'Tu cuenta está suspendida de forma permanente por incumplir las normas de Friendegle'
+    : `Tu cuenta está suspendida hasta el ${ban.until} (UTC) por incumplir las normas de Friendegle`;
 }
 
 /** Campos que un amigo puede ver. Nunca email ni hash. */

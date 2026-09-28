@@ -42,6 +42,12 @@ export default function TermsPage() {
           previo, cuando se incumplan estas normas.
         </li>
         <li>
+          <b>Detección automática:</b> durante el videochat, el navegador de la otra persona analiza automáticamente el
+          vídeo que recibe para detectar contenido sexual. Si lo detecta, el vídeo se oculta, el chat termina y se aplica
+          una sanción: 1ª vez, advertencia; 2ª, suspensión de 24 horas; 3ª, suspensión permanente. La suspensión afecta a
+          tu cuenta y a tu conexión. Un moderador puede revisar y anular cualquier detección errónea.
+        </li>
+        <li>
           Ante contenido que pueda ser ilegal —en especial cualquier indicio de abuso a menores— podremos conservar la
           información necesaria y comunicarla a las autoridades competentes.
         </li>

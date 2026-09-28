@@ -97,3 +97,26 @@ CREATE TABLE IF NOT EXISTS direct_messages (
 );
 CREATE INDEX IF NOT EXISTS idx_dm_pair ON direct_messages(sender_id, recipient_id, id);
 CREATE INDEX IF NOT EXISTS idx_dm_unread ON direct_messages(recipient_id, read_at);
+
+-- Detecciones automáticas de contenido sexual en videochat (análisis local en el navegador).
+-- Nunca se guarda vídeo ni imágenes: solo quién, cuándo, categoría y confianza del modelo.
+CREATE TABLE IF NOT EXISTS auto_violations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER,              -- NULL si el infractor era anónimo
+  ip_hash TEXT NOT NULL,        -- hash de la IP del infractor (nunca la IP en claro)
+  label TEXT,                   -- User_XXXX usado en ese chat
+  category TEXT NOT NULL,       -- 'porn' | 'hentai'
+  score REAL NOT NULL,          -- confianza del modelo (0-1)
+  action TEXT NOT NULL,         -- 'warning' | 'ban_24h' | 'ban_permanent'
+  status TEXT NOT NULL DEFAULT 'active', -- 'active' | 'overturned'
+  reporter_user_id INTEGER,
+  reporter_ip_hash TEXT,
+  reviewed_by INTEGER,
+  reviewed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY(reporter_user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_violations_user ON auto_violations(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_violations_ip ON auto_violations(ip_hash, status);
+CREATE INDEX IF NOT EXISTS idx_violations_reporter ON auto_violations(reporter_ip_hash, created_at);

@@ -255,7 +255,9 @@ export function useWebRTC({ demo = false, avatarUrl }: { demo?: boolean; avatarU
 
     const onEnded = ({ reason }: { reason: string }) => {
       setNotice(
-        reason === 'reported' ? 'El chat terminó.' : reason === 'partner_disconnected' ? 'El usuario se desconectó.' : 'El usuario pasó al siguiente.',
+        reason === 'moderated'
+          ? 'Se detectó contenido inapropiado: el chat terminó y el usuario fue sancionado automáticamente.'
+          : reason === 'reported' ? 'El chat terminó.' : reason === 'partner_disconnected' ? 'El usuario se desconectó.' : 'El usuario pasó al siguiente.',
       );
       search();
     };

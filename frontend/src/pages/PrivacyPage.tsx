@@ -56,6 +56,13 @@ export default function PrivacyPage() {
           <b>Reportes</b>: motivo, nombre anónimo usado en el chat, la cuenta reportada y la que reporta o, si eran
           anónimas, un hash irreversible de su IP. Los revisan moderadores de Friendegle.
         </li>
+        <li>
+          <b>Moderación automática del vídeo</b>: tu navegador analiza con un modelo de IA, en tu propio dispositivo, el
+          vídeo que recibes (un fotograma por segundo, solo en memoria). <b>Los fotogramas nunca se guardan ni salen de tu
+          navegador.</b> Si detecta contenido sexual, solo se envía la categoría y la confianza, y guardamos: cuenta o
+          nombre anónimo del chat e hash de IP de quien lo mostró, quién lo detectó, la hora, la categoría, la confianza
+          y la sanción aplicada. Los moderadores pueden revisarlas y anularlas.
+        </li>
       </ul>
 
       <h2>3. Direcciones IP</h2>

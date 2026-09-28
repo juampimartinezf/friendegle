@@ -4,6 +4,7 @@ import { config } from '../config.js';
 import { areFriends, blockUser, db, isBlockedEitherWay, isIpBanned, isUserBanned, setOnline } from '../database/db.js';
 import { verifyToken } from '../middleware/auth.js';
 import { REPORT_REASONS } from '../routes/reports.js';
+import { AUTO_CATEGORIES, recordViolation, reporterQuotaExceeded, type AutoCategory } from '../autoModeration.js';
 
 /**
  * Señalización WebRTC + emparejamiento aleatorio.
@@ -20,6 +21,8 @@ interface Match {
   b: string;
   labels: Record<string, string>;
   startedAt: number;
+  /** Sockets que ya enviaron una detección automática en este chat (máx. una cada uno) */
+  autoReported?: Set<string>;
 }
 
 interface SocketData {
@@ -185,7 +188,7 @@ function updateStreak(userId: number) {
   db.prepare('UPDATE users SET streak_count = ?, last_chat_date = ? WHERE id = ?').run(streak, today(), userId);
 }
 
-function endMatch(socketId: string, reasonForPartner: 'partner_left' | 'partner_disconnected' | 'reported') {
+function endMatch(socketId: string, reasonForPartner: 'partner_left' | 'partner_disconnected' | 'reported' | 'moderated') {
   const m = matches.get(socketId);
   if (!m) return;
   matches.delete(m.a);
@@ -316,6 +319,47 @@ function handleReport(socket: Socket, payload: unknown) {
   socket.emit('report:ok');
 }
 
+/** Detección automática (NSFWJS en el navegador del que recibe el vídeo). Ver src/autoModeration.ts */
+// El cliente necesita 3 fotogramas (1/s) desde que llega el vídeo: nunca confirma antes de ~3 s
+const MIN_CHAT_MS_FOR_AUTO_DETECTION = 2500;
+function handleAutoDetect(socket: Socket, payload: unknown) {
+  const { category, score } = (payload ?? {}) as { category?: string; score?: number };
+  if (!AUTO_CATEGORIES.includes(category as AutoCategory)) return;
+  if (typeof score !== 'number' || !(score >= 0.5 && score <= 1)) return;
+
+  const m = matches.get(socket.id);
+  const partner = partnerOf(socket.id);
+  if (!m || !partner) return;
+  // Anti-abuso: chat real y en curso, una detección por persona y chat, cupo diario por persona
+  if (Date.now() - m.startedAt < MIN_CHAT_MS_FOR_AUTO_DETECTION) return;
+  if (m.autoReported?.has(socket.id)) return;
+  (m.autoReported ??= new Set()).add(socket.id);
+  const reporter = dataOf(socket);
+  if (reporterQuotaExceeded(reporter.userId, reporter.ipHash)) return;
+
+  const target = dataOf(partner);
+  const result = recordViolation({
+    userId: target.userId,
+    ipHash: target.ipHash,
+    label: m.labels[partner.id],
+    category: category as AutoCategory,
+    score,
+    reporterUserId: reporter.userId,
+    reporterIpHash: reporter.ipHash,
+  });
+
+  // Quien veía el contenido: su chat termina. El infractor: recibe la sanción.
+  endMatch(partner.id, 'moderated');
+  partner.emit('moderation:sanction', { action: result.action, until: result.until });
+  if (result.action !== 'warning') {
+    // Tras mostrar el aviso, fuera: el ban impide volver a la cola y (con cuenta) usar la API
+    setTimeout(() => {
+      if (target.userId) disconnectUser(target.userId);
+      else partner.disconnect(true);
+    }, 1500);
+  }
+}
+
 function handleBlock(socket: Socket) {
   const partner = partnerOf(socket.id);
   const me = dataOf(socket).userId;
@@ -391,6 +435,7 @@ export function setupVideoSignaling(server: Server) {
     socket.on('chat:add-friend', () => handleAddFriend(socket));
     socket.on('chat:report', (p) => handleReport(socket, p));
     socket.on('chat:block', () => handleBlock(socket));
+    socket.on('moderation:auto-detect', (p) => handleAutoDetect(socket, p));
 
     socket.on('disconnect', () => {
       removeFromQueue(socket.id);

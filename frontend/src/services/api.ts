@@ -85,6 +85,21 @@ export interface Conversation {
 
 export const MAX_DM_LENGTH = 1000;
 
+export interface AutoViolation {
+  id: number;
+  category: 'porn' | 'hentai';
+  score: number;
+  action: 'warning' | 'ban_24h' | 'ban_permanent';
+  status: 'active' | 'overturned';
+  label: string | null;
+  createdAt: string;
+  userId: number | null;
+  username: string | null;
+  reporterUsername: string | null;
+  activeViolations: number;
+  isBanned: number;
+}
+
 export interface FriendRequest {
   id: number;
   label: string;
@@ -145,6 +160,8 @@ export const api = {
   adminReports: (status: AdminReport['status']) => request<{ reports: AdminReport[] }>(`/admin/reports?status=${status}`),
   adminDismiss: (id: number) => post<{ ok: true }>(`/admin/reports/${id}/dismiss`),
   adminBan: (id: number) => post<{ ok: true }>(`/admin/reports/${id}/ban`),
+  adminViolations: (status: AutoViolation['status']) => request<{ violations: AutoViolation[] }>(`/admin/violations?status=${status}`),
+  adminOverturn: (id: number) => post<{ ok: true }>(`/admin/violations/${id}/overturn`),
 };
 
 /** SQLite guarda CURRENT_TIMESTAMP en UTC sin zona: "2026-09-27 21:03:11" */

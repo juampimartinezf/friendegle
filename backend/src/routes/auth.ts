@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { db, type UserRow } from '../database/db.js';
+import { banMessage, db, userBan, type UserRow } from '../database/db.js';
 import { rateLimit, requireAuth, signToken, type AuthedRequest } from '../middleware/auth.js';
 import { config } from '../config.js';
 import { randomAvatar } from '../avatar.js';
@@ -28,7 +28,6 @@ const loginSchema = z.object({
 /** Perfil propio: lo único que nunca sale es el hash. */
 export const isAdmin = (email: string) => config.adminEmails.includes(email.toLowerCase());
 
-export const BANNED_MESSAGE = 'Tu cuenta está suspendida por incumplir las normas de Friendegle';
 
 export function selfView(u: UserRow) {
   return {
@@ -78,7 +77,8 @@ authRouter.post('/login', authLimiter, async (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as UserRow | undefined;
   const ok = user ? await bcrypt.compare(password, user.password_hash) : false;
   if (!user || !ok) return res.status(401).json({ error: 'Email o contraseña incorrectos' });
-  if (user.banned_at) return res.status(403).json({ error: BANNED_MESSAGE });
+  const ban = userBan(user.id);
+  if (ban) return res.status(403).json({ error: banMessage(ban) });
 
   res.json({ token: signToken(user.id), user: selfView(user) });
 });
