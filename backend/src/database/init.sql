@@ -73,3 +73,13 @@ CREATE TABLE IF NOT EXISTS reports (
 
 CREATE INDEX IF NOT EXISTS idx_reports_reported ON reports(reported_user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_reports_ip ON reports(reported_ip, created_at);
+
+-- Suspensiones de usuarios anónimos (por hash de IP; nunca la IP en claro)
+CREATE TABLE IF NOT EXISTS ip_bans (
+  ip_hash TEXT PRIMARY KEY,
+  reason TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Columnas añadidas después de la primera versión (moderación y aceptación de términos)
+-- se crean en db.ts con ensureColumn(), para que también se apliquen a bases de datos existentes.

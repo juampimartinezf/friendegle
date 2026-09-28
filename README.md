@@ -18,6 +18,8 @@ Video chat aleatorio y anónimo. Si conectas con alguien, os agregáis como amig
 - [Desarrollo local](#desarrollo-local)
 - [Privacidad y seguridad](#privacidad-y-seguridad)
 - [Privacidad de IP (servidor TURN)](#privacidad-de-ip-servidor-turn)
+- [Normas, edad y moderación](#normas-edad-y-moderación)
+- [Despliegue gratuito: Vercel + Oracle Cloud + DuckDNS](#despliegue-gratuito-vercel--oracle-cloud--duckdns)
 - [Despliegue a producción](#despliegue-a-producción)
   - [1. DNS](#1-dns) · [2. Droplet](#2-droplet-de-digitalocean) · [3. Backend + TURN](#3-backend--turn-en-el-droplet) · [4. Frontend en Vercel](#4-frontend-en-vercel) · [5. Verificación](#5-verificación)
   - [Certificados SSL](#certificados-ssl) · [Actualizar y revertir](#actualizar-y-revertir) · [Monitoreo y logs](#monitoreo-y-logs) · [Copias de seguridad](#copias-de-seguridad) · [Troubleshooting](#troubleshooting)
@@ -95,8 +97,20 @@ Sin `VITE_API_URL` avisa y usa `/api` relativo (el proxy de `vite preview` lo re
 - El servidor TURN sí ve la IP de ambos usuarios (es inevitable: es quien reenvía el tráfico). Sus logs van a stdout y Docker los rota (10 MB × 5).
 - El JWT vive en `localStorage` (según la especificación): vulnerable si hubiera XSS (la CSP lo mitiga). Lo ideal sería una cookie `httpOnly` + `SameSite`.
 - Cola, emparejamientos y rate limiting están en memoria: **un solo proceso de backend**. Para escalar horizontalmente harían falta Redis (adaptador de Socket.io) y Postgres.
-- No hay panel de moderación: los reportes se consultan en la tabla `reports` (ver [Monitoreo](#monitoreo-y-logs)).
+- La confirmación de edad es una **declaración** del usuario (casilla 18+), no una verificación de identidad.
 - Las URLs de *preview* de Vercel no pasan el CORS (a propósito). Para probar una preview, añade su URL exacta a `CLIENT_ORIGIN` temporalmente.
+
+## Normas, edad y moderación
+
+| Qué | Cómo |
+|---|---|
+| **Solo mayores de 18** | Al registrarse y al entrar como anónimo hay que marcar “Confirmo que tengo 18 años o más y acepto los Términos y la Política de privacidad”. En el registro lo valida también el servidor (`acceptTerms`) y guarda la fecha (`users.terms_accepted_at`). |
+| **Términos y Privacidad** | Páginas públicas `/terminos` y `/privacidad`, enlazadas desde login, registro y Configuración. El responsable, el email de contacto y el país salen de `VITE_LEGAL_OWNER`, `VITE_CONTACT_EMAIL` y `VITE_LEGAL_COUNTRY` (el build de Vercel falla si faltan). |
+| **Panel de moderación** | `/admin`, visible solo para las cuentas cuyo email esté en `ADMIN_EMAILS` (para el resto, la API responde 404). Lista los reportes (primero los de “parece menor de edad”) con el motivo, la cuenta o etiqueta anónima y el número total de reportes. Acciones: **Descartar** o **Suspender**. Nunca muestra IPs. |
+| **Suspensiones** | Suspender una cuenta la expulsa del chat al instante, bloquea su login y anula su token. Suspender a un anónimo bloquea su IP (guardada solo como hash, tabla `ip_bans`). Sigue activa además la suspensión automática temporal: 3 reportes de personas distintas en 24 h. |
+| **Eliminar cuenta** | Configuración → Eliminar cuenta (pide la contraseña). Borra perfil, amistades, bloqueos e historial; los reportes quedan desvinculados. |
+
+> ⚠️ Los textos de Términos y Privacidad son una **plantilla razonable, no asesoramiento legal**: revísalos con un abogado de tu país antes de abrir al público. Infórmate también de tus obligaciones ante contenido ilegal (por ejemplo, cómo y a quién denunciar material de abuso infantil en tu jurisdicción) y revisa los reportes con regularidad.
 
 ## Privacidad de IP (servidor TURN)
 
@@ -122,6 +136,69 @@ Tres capas:
 **Comprobarlo**: en Chrome abre `chrome://webrtc-internals` durante un chat. Todos los candidatos deben ser `relay` y el par seleccionado debe ser `relay ↔ relay`. Si el TURN no está corriendo, el vídeo no conecta (no hay fallback a P2P, a propósito): aparece el aviso “No se pudo conectar el vídeo a través del servidor TURN”.
 
 ---
+
+## Despliegue gratuito: Vercel + Oracle Cloud + DuckDNS
+
+La forma de publicar Friendegle **sin pagar nada**. El vídeo necesita un TURN con puertos UDP, y los hostings gratuitos típicos (Render, Koyeb, Railway) no los permiten; una máquina virtual *Always Free* de Oracle sí.
+
+| Parte | Servicio | Ejemplo |
+|---|---|---|
+| Frontend | Vercel Hobby (gratis, uso no comercial) | `https://friendegle.vercel.app` |
+| Backend + TURN + BD | Oracle Cloud *Always Free*: VM Ampere A1 (hasta 4 núcleos, 24 GB RAM, 10 TB de salida al mes) | — |
+| Dominios `api` y `turn` | DuckDNS (subdominios gratis) | `friendegle-api.duckdns.org`, `friendegle-turn.duckdns.org` |
+
+**1. GitHub.** Crea un repositorio vacío `friendegle` y sube el proyecto (ya tiene el primer commit):
+
+```bash
+git remote add origin https://github.com/TU_USUARIO/friendegle.git
+git push -u origin main
+```
+
+**2. Oracle Cloud.** Crea la cuenta en cloud.oracle.com (pide tarjeta solo para verificar la identidad; no cobra si usas recursos *Always Free*). Luego:
+
+1. *Compute → Instances → Create instance*: imagen **Ubuntu 24.04**, shape **VM.Standard.A1.Flex** (Ampere, marcado *Always Free*), p. ej. 2 OCPU / 12 GB. Sube tu clave SSH pública. Si aparece “out of capacity”, prueba otro *availability domain* o más tarde.
+2. En la instancia: *Attached VNICs → la subred → Security List → Add Ingress Rules* (origen `0.0.0.0/0`):
+   - TCP: `80`, `443`, `3478`, `5349`
+   - UDP: `443`, `3478`, `49152-65535`
+3. Recomendado: convierte la IP pública en **reservada** (*Networking → Reserved Public IPs*) para que no cambie si recreas la instancia.
+
+**3. DuckDNS.** Entra en duckdns.org, crea `friendegle-api` y `friendegle-turn` (o los nombres que quieras) y pon en los dos la IP pública de la instancia.
+
+**4. Servidor** (por SSH: `ssh ubuntu@IP` y luego `sudo -i`). Instala Docker como en el [paso 2 de DigitalOcean](#2-droplet-de-digitalocean) y después:
+
+```bash
+git clone https://github.com/TU_USUARIO/friendegle.git /opt/friendegle
+cd /opt/friendegle/deploy && chmod +x deploy.sh
+./deploy.sh firewall   # detecta Oracle y abre los puertos en iptables (no usa ufw)
+./deploy.sh init       # secretos aleatorios + IP pública detectada
+nano .env.production   # valores de abajo
+./deploy.sh
+```
+
+Valores de `.env.production` para este montaje:
+
+```
+API_DOMAIN=friendegle-api.duckdns.org
+TURN_DOMAIN=friendegle-turn.duckdns.org
+ACME_EMAIL=tu-email@gmail.com
+CLIENT_ORIGIN=https://friendegle.vercel.app
+ADMIN_EMAILS=tu-email@gmail.com
+```
+
+**5. Vercel.** Importa el repositorio con **Root Directory = `frontend`** y define en *Environment Variables*:
+
+| Variable | Ejemplo |
+|---|---|
+| `VITE_API_URL` | `https://friendegle-api.duckdns.org` |
+| `VITE_LEGAL_OWNER` | Tu nombre |
+| `VITE_CONTACT_EMAIL` | Un email público de contacto |
+| `VITE_LEGAL_COUNTRY` | Tu país |
+
+Si Vercel te asigna una URL distinta de la que pusiste en `CLIENT_ORIGIN`, corrígela en el servidor y vuelve a ejecutar `./deploy.sh`.
+
+**6. Moderador.** Regístrate en la web con el email de `ADMIN_EMAILS`: verás **Moderación** en la barra lateral.
+
+La verificación, el monitoreo, los backups y el troubleshooting son los mismos que en la guía general (abajo). Diferencias en Oracle: el firewall es iptables + *Security List* (no ufw + Cloud Firewall), la VM es ARM (todas las imágenes usadas tienen versión arm64) y el proveedor no hace backups automáticos, así que usa `./deploy.sh backup` y copia `deploy/backups/` fuera de vez en cuando.
 
 ## Despliegue a producción
 
@@ -219,8 +296,11 @@ Archivos implicados:
    | Nombre | Valor |
    |---|---|
    | `VITE_API_URL` | `https://api.tu-dominio.com` (sin barra final) |
+   | `VITE_LEGAL_OWNER` | Responsable del servicio (tu nombre o empresa) |
+   | `VITE_CONTACT_EMAIL` | Email público de contacto |
+   | `VITE_LEGAL_COUNTRY` | País cuyas leyes rigen los términos |
 
-   Vite la incrusta **al compilar**: si la cambias, hay que redesplegar. Si falta o no es `https://`, el build de Vercel falla a propósito.
+   Vite las incrusta **al compilar**: si cambias alguna, hay que redesplegar. Si falta alguna, o `VITE_API_URL` no es `https://`, el build de Vercel falla a propósito.
 4. **Deploy**. Después, en **Settings → Domains** añade `tu-dominio.com` y `www.tu-dominio.com` y crea los registros DNS que te indique.
 5. **Despliegue automático**: cada push a `main` despliega a producción; las demás ramas crean previews (que el CORS bloquea, ver [Limitaciones](#limitaciones-conocidas)).
 
@@ -330,6 +410,7 @@ Plantilla: [`backend/.env.example`](backend/.env.example). En producción **no**
 | `TURN_USER` / `TURN_PASS` | `friendegle` / `friendegle123` | Usuario TURN estático (solo si no hay `TURN_SECRET`) |
 | `TURN_SECRET` | vacío | Si se define, credenciales TURN efímeras (como en producción) |
 | `TRUST_PROXY` | vacío | `1` si hay un reverse proxy delante |
+| `ADMIN_EMAILS` | vacío | Emails con acceso al panel de Moderación (`/admin`) |
 | `RATE_LIMIT_API` / `RATE_LIMIT_AUTH` / `RATE_LIMIT_SOCKET` | `600` / `20` / `120` | Ver tabla de producción |
 | `NODE_ENV` | vacío | `production` activa la validación estricta de configuración |
 
@@ -344,6 +425,7 @@ Plantilla documentada: [`deploy/.env.production.example`](deploy/.env.production
 | `PUBLIC_IP` | ✅ | IP pública del Droplet; Coturn escucha y hace relay en ella |
 | `ACME_EMAIL` | ✅ | Email de avisos de Let's Encrypt |
 | `CLIENT_ORIGIN` | ✅ | Orígenes del frontend permitidos por CORS (solo https, sin comodines) |
+| `ADMIN_EMAILS` | — | Emails (separados por comas) con acceso al panel de Moderación |
 | `JWT_SECRET` | ✅ | Firma de sesiones (≥ 32 caracteres). Cambiarlo cierra todas las sesiones |
 | `TURN_SECRET` | ✅ | Secreto compartido backend ↔ Coturn para credenciales TURN de 4 h (≥ 32 caracteres) |
 | `STUN_URL` | — | STUN anunciado (por defecto el de Google) |
@@ -359,6 +441,7 @@ Plantilla: [`frontend/.env.production.example`](frontend/.env.production.example
 
 | Variable | Obligatoria | Qué hace |
 |---|---|---|
+| `VITE_LEGAL_OWNER` / `VITE_CONTACT_EMAIL` / `VITE_LEGAL_COUNTRY` | ✅ en Vercel | Responsable, email de contacto y país que aparecen en `/terminos` y `/privacidad` |
 | `VITE_API_URL` | ✅ en Vercel | URL https del backend. Base de las llamadas REST y del WebSocket, y único destino permitido en la CSP. Es pública (va en el bundle): nunca pongas secretos en variables `VITE_*`. Vacía en local |
 
 ## API
@@ -366,7 +449,7 @@ Plantilla: [`frontend/.env.production.example`](frontend/.env.production.example
 | Método | Ruta | Descripción |
 |---|---|---|
 | GET | `/api/health` | Health check (sin rate limit) |
-| POST | `/api/auth/register` | `{ email, password, username, realName? }` |
+| POST | `/api/auth/register` | `{ email, password, username, realName?, acceptTerms: true }` |
 | POST | `/api/auth/login` | `{ email, password }` |
 | GET | `/api/auth/me` | Usuario actual |
 | PUT | `/api/users/me` | Editar perfil propio |
@@ -377,5 +460,8 @@ Plantilla: [`frontend/.env.production.example`](frontend/.env.production.example
 | POST | `/api/friends/:id/accept` · `/reject` | Responder solicitud |
 | DELETE | `/api/friends/:id` | Eliminar amistad |
 | POST | `/api/reports` | Reportar a un amigo |
+| DELETE | `/api/users/me` | Eliminar la propia cuenta (`{ password }`) |
+| GET | `/api/admin/reports?status=open` | Moderación: listar reportes (`open`, `actioned` o `dismissed`; solo `ADMIN_EMAILS`) |
+| POST | `/api/admin/reports/:id/dismiss` · `/ban` | Moderación: descartar o suspender |
 
 **Socket.io**. Cliente → servidor: `queue:join`, `queue:leave`, `signal`, `chat:leave`, `chat:add-friend`, `chat:report {reason}`, `chat:block`. Servidor → cliente: `queue:waiting`, `queue:suspended`, `chat:matched`, `signal`, `chat:ended`, `friend:status`, `friend:incoming`, `friend:request`, `friend:accepted`, `friends:changed`, `report:ok`, `block:ok`.

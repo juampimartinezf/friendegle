@@ -9,6 +9,7 @@ import { authRouter } from './routes/auth.js';
 import { usersRouter } from './routes/users.js';
 import { friendsRouter } from './routes/friends.js';
 import { reportsRouter } from './routes/reports.js';
+import { adminRouter } from './routes/admin.js';
 import { setupVideoSignaling } from './sockets/videoSignaling.js';
 
 const app = express();
@@ -30,6 +31,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/friends', friendsRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/admin', adminRouter);
 
 app.use((_req, res) => res.status(404).json({ error: 'No encontrado' }));
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

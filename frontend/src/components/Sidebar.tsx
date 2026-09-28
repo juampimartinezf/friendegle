@@ -11,6 +11,7 @@ const ITEMS = [
 
 export default function Sidebar({ requestCount, onNavigate }: { requestCount: number; onNavigate?: () => void }) {
   const { user } = useAuth();
+  const items = user?.isAdmin ? [...ITEMS, { to: '/admin', label: 'Moderación', icon: '🛡️', needsAccount: true }] : ITEMS;
 
   return (
     <nav className="flex h-full w-64 flex-col gap-6 border-r border-celeste-300 bg-celeste-200 p-4">
@@ -23,7 +24,7 @@ export default function Sidebar({ requestCount, onNavigate }: { requestCount: nu
       </div>
 
       <ul className="flex flex-col gap-1">
-        {ITEMS.map((item) => {
+        {items.map((item) => {
           const disabled = item.needsAccount && !user;
           if (disabled) {
             return (

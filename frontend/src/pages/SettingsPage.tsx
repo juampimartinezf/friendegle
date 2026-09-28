@@ -1,5 +1,66 @@
-import { Link } from 'react-router-dom';
+import { useState, type FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { api } from '../services/api';
+import { LegalLinks } from '../components/LegalConsent';
+
+/** Eliminación definitiva de la cuenta, con la contraseña como confirmación. */
+function DeleteAccount() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!confirm('Esta acción no se puede deshacer. ¿Eliminar tu cuenta definitivamente?')) return;
+    setBusy(true);
+    setError('');
+    try {
+      await api.deleteAccount(password);
+      logout();
+      navigate('/login');
+    } catch (err) {
+      setError((err as Error).message);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border border-rose-300 bg-surface p-6 dark:border-rose-500/40">
+      <h2 className="font-semibold text-rose-600 dark:text-rose-400">Eliminar cuenta</h2>
+      <p className="mt-1 text-sm text-ink-soft">
+        Se borran tu perfil, tus amistades, tus bloqueos y tu historial. Los reportes se conservan sin vínculo a tu cuenta.
+      </p>
+      {open ? (
+        <form onSubmit={onSubmit} className="mt-4 flex flex-wrap gap-2">
+          <input
+            type="password"
+            required
+            autoComplete="current-password"
+            placeholder="Tu contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="min-w-0 flex-1 rounded-lg border border-celeste-300 bg-celeste-50 px-3 py-2 text-sm outline-none focus:border-rose-500"
+          />
+          <button disabled={busy} className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-50">
+            {busy ? 'Eliminando…' : 'Eliminar definitivamente'}
+          </button>
+          <button type="button" onClick={() => setOpen(false)} className="rounded-lg px-3 py-2 text-sm text-ink-soft hover:bg-celeste-100">
+            Cancelar
+          </button>
+          {error && <p className="w-full text-sm text-rose-600 dark:text-rose-400">{error}</p>}
+        </form>
+      ) : (
+        <button onClick={() => setOpen(true)} className="mt-4 rounded-lg border border-rose-300 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-400 dark:hover:bg-rose-400/10">
+          Eliminar mi cuenta…
+        </button>
+      )}
+    </section>
+  );
+}
 
 const PRIVACY = [
   ['🎭', 'En cada chat recibes un nombre anónimo nuevo (User_XXXX). Tu nombre, usuario y email nunca se envían al desconocido.'],
@@ -46,6 +107,9 @@ export default function SettingsPage() {
           ))}
         </ul>
       </section>
+
+      {user && <DeleteAccount />}
+      <LegalLinks className="text-center" />
     </div>
   );
 }

@@ -2,11 +2,13 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { AnonymousButton, AuthShell, Field, PrimaryButton } from './LoginPage';
+import LegalConsent from '../components/LegalConsent';
 
 export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', username: '', realName: '', password: '', confirm: '' });
+  const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -16,6 +18,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
     if (form.password !== form.confirm) return setError('Las contraseñas no coinciden');
+    if (!accepted) return setError('Debes confirmar que tienes 18 años o más y aceptar los términos');
     setLoading(true);
     try {
       await register({
@@ -23,6 +26,7 @@ export default function RegisterPage() {
         username: form.username,
         realName: form.realName || undefined,
         password: form.password,
+        acceptTerms: true,
       });
       navigate('/profile');
     } catch (err) {
@@ -57,6 +61,7 @@ export default function RegisterPage() {
           hint="Mínimo 8 caracteres."
         />
         <Field label="Repite la contraseña" type="password" autoComplete="new-password" required value={form.confirm} onChange={set('confirm')} />
+        <LegalConsent checked={accepted} onChange={setAccepted} />
         {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">{error}</p>}
         <PrimaryButton loading={loading}>Crear cuenta</PrimaryButton>
       </form>

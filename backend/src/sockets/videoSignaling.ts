@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomInt } from 'node:crypto';
 import type { Server, Socket } from 'socket.io';
 import { config } from '../config.js';
-import { areFriends, blockUser, db, isBlockedEitherWay, setOnline } from '../database/db.js';
+import { areFriends, blockUser, db, isBlockedEitherWay, isIpBanned, isUserBanned, setOnline } from '../database/db.js';
 import { verifyToken } from '../middleware/auth.js';
 import { REPORT_REASONS } from '../routes/reports.js';
 
@@ -88,6 +88,18 @@ export function sanitizeSignal(signal: any): unknown | null {
   return signal; // renegotiate / transceiverRequest: sin direcciones
 }
 
+/** Cierra todas las conexiones de un usuario (p. ej. al suspenderlo). */
+export function disconnectUser(userId: number) {
+  io?.in(`user:${userId}`).disconnectSockets(true);
+}
+
+/** Cierra las conexiones anónimas que vienen de una IP suspendida (identificada por su hash). */
+export function disconnectIpHash(ipHash: string) {
+  for (const socket of io?.sockets.sockets.values() ?? []) {
+    if (dataOf(socket).ipHash === ipHash) socket.disconnect(true);
+  }
+}
+
 /** Envía un evento a todas las pestañas de un usuario registrado. */
 export function notifyUser(userId: number, event: string, payload: unknown) {
   io?.to(`user:${userId}`).emit(event, payload);
@@ -100,6 +112,8 @@ function partnerOf(socketId: string): Socket | undefined {
 }
 
 function isSuspended(d: SocketData): boolean {
+  // Suspensión permanente decidida por un moderador
+  if ((d.userId && isUserBanned(d.userId)) || isIpBanned(d.ipHash)) return true;
   const since = new Date(Date.now() - 86_400_000).toISOString().replace('T', ' ').slice(0, 19);
   const row = db
     .prepare(

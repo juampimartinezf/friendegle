@@ -12,6 +12,8 @@ export const config = {
   port: Number(env.PORT ?? 4000),
   // Orígenes permitidos por CORS (separados por comas). Producción: solo tu dominio de Vercel.
   clientOrigins: list(env.CLIENT_ORIGIN, 'http://localhost:5173'),
+  // Emails (separados por comas) de las cuentas con acceso al panel de moderación
+  adminEmails: list(env.ADMIN_EMAILS, '').map((e) => e.toLowerCase()),
   // '1' cuando hay un reverse proxy delante (Caddy): la IP real sale de X-Forwarded-For
   trustProxy: env.TRUST_PROXY === '1',
   jwtSecret: env.JWT_SECRET ?? 'dev-only-secret-change-me',

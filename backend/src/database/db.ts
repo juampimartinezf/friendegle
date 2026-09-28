@@ -7,6 +7,18 @@ export const db = new Database(config.dbPath);
 db.pragma('journal_mode = WAL');
 db.exec(readFileSync(join(import.meta.dirname, 'init.sql'), 'utf8'));
 
+/** Migración mínima: añade una columna si una BD creada con una versión anterior no la tiene. */
+function ensureColumn(table: string, column: string, definition: string) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!columns.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+ensureColumn('users', 'terms_accepted_at', 'TIMESTAMP'); // confirmó 18+ y aceptó términos al registrarse
+ensureColumn('users', 'banned_at', 'TIMESTAMP'); // suspendido por moderación
+ensureColumn('reports', 'status', "TEXT DEFAULT 'open'"); // 'open' | 'dismissed' | 'actioned'
+ensureColumn('reports', 'reviewed_at', 'TIMESTAMP');
+ensureColumn('reports', 'reviewed_by', 'INTEGER');
+db.exec('CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at)');
+
 // Nadie está en línea al arrancar el servidor
 db.prepare('UPDATE users SET is_online = FALSE').run();
 
@@ -23,7 +35,17 @@ export interface UserRow {
   last_seen: string | null;
   streak_count: number;
   last_chat_date: string | null;
+  terms_accepted_at: string | null;
+  banned_at: string | null;
   created_at: string;
+}
+
+export function isUserBanned(userId: number): boolean {
+  return !!db.prepare('SELECT 1 FROM users WHERE id = ? AND banned_at IS NOT NULL').get(userId);
+}
+
+export function isIpBanned(ipHash: string): boolean {
+  return !!db.prepare('SELECT 1 FROM ip_bans WHERE ip_hash = ?').get(ipHash);
 }
 
 /** Campos que un amigo puede ver. Nunca email ni hash. */

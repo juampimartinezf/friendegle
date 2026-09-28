@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Logo } from '../components/Header';
 import ThemeToggle from '../components/ThemeToggle';
+import LegalConsent, { LegalLinks } from '../components/LegalConsent';
 
 export function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
@@ -18,8 +19,9 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
           {children}
         </div>
         <p className="mt-6 text-center text-xs text-ink-soft">
-          Sin buscador · Sin perfiles públicos · Anónimo en el chat
+          Sin buscador · Sin perfiles públicos · Anónimo en el chat · Solo mayores de 18
         </p>
+        <LegalLinks className="mt-2 text-center" />
       </div>
     </div>
   );
@@ -53,6 +55,32 @@ export function PrimaryButton({ loading, children }: { loading: boolean; childre
 export function AnonymousButton() {
   const { continueAnonymously } = useAuth();
   const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [accepted, setAccepted] = useState(false);
+
+  if (open) {
+    return (
+      <div className="mt-6 space-y-3 border-t border-celeste-200 pt-6">
+        <p className="text-sm font-semibold">🕶️ Entrar como anónimo</p>
+        <LegalConsent checked={accepted} onChange={setAccepted} />
+        <button
+          type="button"
+          disabled={!accepted}
+          onClick={() => {
+            continueAnonymously();
+            navigate('/');
+          }}
+          className="w-full rounded-lg bg-brand-600 py-3 font-semibold text-white transition hover:bg-brand-700 disabled:opacity-40"
+        >
+          Continuar como anónimo
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className="w-full text-sm text-ink-soft hover:text-ink">
+          Cancelar
+        </button>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="my-6 flex items-center gap-3 text-xs text-ink-soft">
@@ -60,10 +88,7 @@ export function AnonymousButton() {
       </div>
       <button
         type="button"
-        onClick={() => {
-          continueAnonymously();
-          navigate('/');
-        }}
+        onClick={() => setOpen(true)}
         className="w-full rounded-lg border border-celeste-300 py-3 font-semibold text-ink transition hover:bg-celeste-50"
       >
         🕶️ Continuar como anónimo

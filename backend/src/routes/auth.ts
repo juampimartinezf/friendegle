@@ -15,6 +15,8 @@ const registerSchema = z.object({
     .trim()
     .regex(/^[a-zA-Z0-9_]{3,20}$/, 'Usuario: 3-20 caracteres, solo letras, números y _'),
   realName: z.string().trim().max(60).optional(),
+  // Confirmación de mayoría de edad (18+) y aceptación de Términos y Política de Privacidad
+  acceptTerms: z.literal(true, { message: 'Debes confirmar que tienes 18 años o más y aceptar los términos' }),
 });
 
 const loginSchema = z.object({
@@ -23,6 +25,10 @@ const loginSchema = z.object({
 });
 
 /** Perfil propio: lo único que nunca sale es el hash. */
+export const isAdmin = (email: string) => config.adminEmails.includes(email.toLowerCase());
+
+export const BANNED_MESSAGE = 'Tu cuenta está suspendida por incumplir las normas de Friendegle';
+
 export function selfView(u: UserRow) {
   return {
     id: u.id,
@@ -34,6 +40,7 @@ export function selfView(u: UserRow) {
     location: u.location,
     streakCount: u.streak_count,
     createdAt: u.created_at,
+    isAdmin: isAdmin(u.email),
   };
 }
 
@@ -47,7 +54,9 @@ authRouter.post('/register', authLimiter, async (req, res) => {
   const hash = await bcrypt.hash(password, 12);
   try {
     const info = db
-      .prepare('INSERT INTO users (email, password_hash, username, real_name, avatar_url) VALUES (?, ?, ?, ?, ?)')
+      .prepare(
+        'INSERT INTO users (email, password_hash, username, real_name, avatar_url, terms_accepted_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
+      )
       .run(email, hash, username, realName || null, 'preset:fox');
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid) as UserRow;
     res.status(201).json({ token: signToken(user.id), user: selfView(user) });
@@ -68,6 +77,7 @@ authRouter.post('/login', authLimiter, async (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as UserRow | undefined;
   const ok = user ? await bcrypt.compare(password, user.password_hash) : false;
   if (!user || !ok) return res.status(401).json({ error: 'Email o contraseña incorrectos' });
+  if (user.banned_at) return res.status(403).json({ error: BANNED_MESSAGE });
 
   res.json({ token: signToken(user.id), user: selfView(user) });
 });

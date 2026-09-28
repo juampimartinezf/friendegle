@@ -41,6 +41,13 @@ export default defineConfig(({ mode }) => {
     console.warn(`\n⚠️  ${msg}. El build usará /api relativo.\n`);
   }
 
+  const missingLegal = ['VITE_LEGAL_OWNER', 'VITE_CONTACT_EMAIL', 'VITE_LEGAL_COUNTRY'].filter((k) => !env[k]);
+  if (mode === 'production' && missingLegal.length) {
+    const msg = `Faltan ${missingLegal.join(', ')}: las páginas de Términos y Privacidad mostrarían huecos sin rellenar`;
+    if (process.env.VERCEL) throw new Error(msg);
+    console.warn(`\n⚠️  ${msg}.\n`);
+  }
+
   return {
     plugins: [react(), tailwindcss(), contentSecurityPolicy(apiUrl)],
     build: {

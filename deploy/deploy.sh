@@ -28,7 +28,8 @@ cmd_init() {
   [[ -f $ENV_FILE ]] && die "$ENV_FILE ya existe; edítalo a mano (no se sobrescribe)."
   command -v openssl >/dev/null || die "Falta openssl"
   local ip
-  ip=$(curl -fsS --max-time 3 http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address || true)
+  ip=$(curl -fsS --max-time 3 http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address 2>/dev/null ||
+       curl -fsS --max-time 5 https://checkip.amazonaws.com 2>/dev/null | tr -d '[:space:]' || true)
   sed -e "s|^JWT_SECRET=.*|JWT_SECRET=$(openssl rand -hex 32)|" \
       -e "s|^TURN_SECRET=.*|TURN_SECRET=$(openssl rand -hex 32)|" \
       ${ip:+-e "s|^PUBLIC_IP=.*|PUBLIC_IP=$ip|"} \
@@ -136,7 +137,27 @@ EOF
   info "Cron instalado: certificados TURN (04:17) y backups (03:42) diarios"
 }
 
+# Puertos que Friendegle necesita abiertos (protocolo y puerto/rango)
+PORTS=("tcp 80" "tcp 443" "udp 443" "tcp 3478" "udp 3478" "tcp 5349" "udp 49152:65535")
+
 cmd_firewall() {
+  # Las imágenes Ubuntu de Oracle Cloud traen reglas iptables propias que terminan en REJECT;
+  # activar ufw encima las rompe. Ahí se insertan las reglas antes del REJECT y se guardan.
+  if iptables -S INPUT 2>/dev/null | grep -q -- '-j REJECT'; then
+    info "Oracle Cloud detectado: abriendo puertos en iptables"
+    local pos
+    pos=$(iptables -L INPUT --line-numbers | awk '/REJECT/ {print $1; exit}')
+    for p in "${PORTS[@]}"; do
+      read -r proto port <<< "$p"
+      iptables -C INPUT -p "$proto" --dport "$port" -j ACCEPT 2>/dev/null ||
+        iptables -I INPUT "$pos" -p "$proto" --dport "$port" -j ACCEPT
+    done
+    netfilter-persistent save
+    iptables -L INPUT -n --line-numbers
+    warn "Abre también estos puertos en la Security List de la VCN (consola de Oracle). Ver README."
+    return
+  fi
+
   command -v ufw >/dev/null || apt-get install -y ufw
   ufw default deny incoming
   ufw default allow outgoing

@@ -12,6 +12,9 @@ import VideoChatPage from './pages/VideoChatPage';
 import ProfilePage from './pages/ProfilePage';
 import FriendsPage from './pages/FriendsPage';
 import SettingsPage from './pages/SettingsPage';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
+import AdminPage from './pages/AdminPage';
 
 /** Deja pasar a usuarios registrados o en modo anónimo. */
 function RequireSession({ children }: { children: ReactNode }) {
@@ -24,6 +27,12 @@ function RequireSession({ children }: { children: ReactNode }) {
 function RequireAccount({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   return user ? children : <Navigate to="/" replace />;
+}
+
+/** Solo estética: el servidor responde 404 a quien no sea admin. */
+function RequireAdmin({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  return user?.isAdmin ? children : <Navigate to="/" replace />;
 }
 
 function PublicOnly({ children }: { children: ReactNode }) {
@@ -89,6 +98,7 @@ function RoutesWithRefresh({ refresh }: { refresh: () => void }) {
       <Route path="profile" element={<RequireAccount><ProfilePage /></RequireAccount>} />
       <Route path="friends" element={<RequireAccount><FriendsPage onRequestsChanged={refresh} /></RequireAccount>} />
       <Route path="friends/:id" element={<RequireAccount><ProfilePage /></RequireAccount>} />
+      <Route path="admin" element={<RequireAdmin><AdminPage /></RequireAdmin>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
@@ -101,6 +111,8 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<PublicOnly><LoginPage /></PublicOnly>} />
           <Route path="/register" element={<PublicOnly><RegisterPage /></PublicOnly>} />
+          <Route path="/terminos" element={<TermsPage />} />
+          <Route path="/privacidad" element={<PrivacyPage />} />
           <Route path="/chat" element={<RequireSession><VideoChatPage /></RequireSession>} />
           <Route path="/*" element={<RequireSession><AppLayout /></RequireSession>} />
         </Routes>

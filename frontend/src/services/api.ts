@@ -22,6 +22,7 @@ export interface Me {
   location: string | null;
   streakCount: number;
   createdAt: string;
+  isAdmin: boolean;
 }
 
 export interface Friend {
@@ -44,6 +45,19 @@ export interface FriendProfile {
   is_online: number;
   last_seen: string | null;
   streak_count: number;
+}
+
+export interface AdminReport {
+  id: number;
+  reason: string;
+  status: 'open' | 'dismissed' | 'actioned';
+  createdAt: string;
+  reportedLabel: string | null;
+  reportedUserId: number | null;
+  reportedUsername: string | null;
+  reporterUsername: string | null;
+  isBanned: number;
+  totalReports: number;
 }
 
 export interface FriendRequest {
@@ -77,13 +91,15 @@ const post = <T>(path: string, data?: unknown) =>
   request<T>(path, { method: 'POST', body: data ? JSON.stringify(data) : undefined });
 
 export const api = {
-  register: (data: { email: string; password: string; username: string; realName?: string }) =>
+  register: (data: { email: string; password: string; username: string; realName?: string; acceptTerms: true }) =>
     post<{ token: string; user: Me }>('/auth/register', data),
   login: (data: { email: string; password: string }) => post<{ token: string; user: Me }>('/auth/login', data),
   me: () => request<{ user: Me }>('/auth/me'),
 
   updateProfile: (data: Partial<Pick<Me, 'realName' | 'avatarUrl' | 'bio' | 'location'>>) =>
     request<{ user: Me }>('/users/me', { method: 'PUT', body: JSON.stringify(data) }),
+  deleteAccount: (password: string) =>
+    request<{ ok: true }>('/users/me', { method: 'DELETE', body: JSON.stringify({ password }) }),
   friendProfile: (id: number) => request<{ profile: FriendProfile }>(`/users/${id}/profile`),
   blockFriend: (id: number) => post<{ ok: true }>(`/users/${id}/block`),
 
@@ -95,6 +111,10 @@ export const api = {
 
   reportFriend: (userId: number, reason: string, details?: string) =>
     post<{ ok: true }>('/reports', { userId, reason, details }),
+
+  adminReports: (status: AdminReport['status']) => request<{ reports: AdminReport[] }>(`/admin/reports?status=${status}`),
+  adminDismiss: (id: number) => post<{ ok: true }>(`/admin/reports/${id}/dismiss`),
+  adminBan: (id: number) => post<{ ok: true }>(`/admin/reports/${id}/ban`),
 };
 
 /** SQLite guarda CURRENT_TIMESTAMP en UTC sin zona: "2026-09-27 21:03:11" */

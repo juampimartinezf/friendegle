@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config.js';
+import { isUserBanned } from '../database/db.js';
 
 export interface AuthedRequest extends Request {
   userId?: number;
@@ -26,6 +27,8 @@ export function requireAuth(req: AuthedRequest, res: Response, next: NextFunctio
   const header = req.headers.authorization;
   const userId = verifyToken(header?.startsWith('Bearer ') ? header.slice(7) : null);
   if (!userId) return res.status(401).json({ error: 'No autenticado' });
+  // Una cuenta suspendida pierde el acceso aunque su token siga siendo válido
+  if (isUserBanned(userId)) return res.status(403).json({ error: 'Cuenta suspendida' });
   req.userId = userId;
   next();
 }

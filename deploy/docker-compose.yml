@@ -20,6 +20,7 @@ services:
       PORT: "4000"
       DB_PATH: /data/friendegle.db
       CLIENT_ORIGIN: ${CLIENT_ORIGIN:?Falta CLIENT_ORIGIN en .env.production}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       JWT_SECRET: ${JWT_SECRET:?Falta JWT_SECRET en .env.production}
       TURN_SECRET: ${TURN_SECRET:?Falta TURN_SECRET en .env.production}
       TURN_URLS: turn:${TURN_DOMAIN}:3478?transport=udp,turn:${TURN_DOMAIN}:3478?transport=tcp,turns:${TURN_DOMAIN}:5349?transport=tcp

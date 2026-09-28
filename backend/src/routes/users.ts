@@ -1,9 +1,10 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { areFriends, blockUser, db, FRIEND_PROFILE_COLUMNS, type UserRow } from '../database/db.js';
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js';
 import { selfView } from './auth.js';
-import { notifyUser } from '../sockets/videoSignaling.js';
+import { disconnectUser, notifyUser } from '../sockets/videoSignaling.js';
 
 // PRIVACIDAD: este router NO tiene endpoints de búsqueda ni de listado de usuarios.
 // El único perfil ajeno accesible es el de un amigo aceptado.
@@ -53,5 +54,30 @@ usersRouter.post('/:id/block', (req: AuthedRequest, res) => {
   }
   blockUser(req.userId!, otherId);
   notifyUser(otherId, 'friends:changed', {});
+  res.json({ ok: true });
+});
+
+/**
+ * Elimina la cuenta y sus datos (amistades, bloqueos e historial se borran en cascada;
+ * en los reportes el usuario queda anonimizado). Pide la contraseña como confirmación.
+ */
+usersRouter.delete('/me', async (req: AuthedRequest, res) => {
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId) as UserRow;
+  if (!(await bcrypt.compare(password, user.password_hash))) {
+    return res.status(401).json({ error: 'Contraseña incorrecta' });
+  }
+  const friendIds = (
+    db
+      .prepare(
+        `SELECT CASE WHEN user1_id = ? THEN user2_id ELSE user1_id END AS id
+         FROM friends WHERE status = 'accepted' AND (user1_id = ? OR user2_id = ?)`,
+      )
+      .all(req.userId, req.userId, req.userId) as { id: number }[]
+  ).map((r) => r.id);
+
+  disconnectUser(req.userId!);
+  db.prepare('DELETE FROM users WHERE id = ?').run(req.userId);
+  for (const id of friendIds) notifyUser(id, 'friends:changed', {});
   res.json({ ok: true });
 });
