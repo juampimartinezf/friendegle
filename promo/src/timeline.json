@@ -1,0 +1,46 @@
+{
+  "fps": 30,
+  "total": 900,
+  "scenes": [
+    {
+      "id": "hook",
+      "from": 0,
+      "duration": 150,
+      "voice": "voice/v1.wav",
+      "voiceAt": 12,
+      "voiceFrames": 70
+    },
+    {
+      "id": "clock",
+      "from": 150,
+      "duration": 165,
+      "voice": "voice/v2.wav",
+      "voiceAt": 8,
+      "voiceFrames": 113
+    },
+    {
+      "id": "sign",
+      "from": 315,
+      "duration": 210,
+      "voice": "voice/v3.wav",
+      "voiceAt": 20,
+      "voiceFrames": 69
+    },
+    {
+      "id": "phone",
+      "from": 525,
+      "duration": 180,
+      "voice": "voice/v4.wav",
+      "voiceAt": 8,
+      "voiceFrames": 63
+    },
+    {
+      "id": "winner",
+      "from": 705,
+      "duration": 195,
+      "voice": "voice/v5.wav",
+      "voiceAt": 14,
+      "voiceFrames": 49
+    }
+  ]
+}
