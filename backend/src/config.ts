@@ -23,6 +23,8 @@ export const config = {
   reportsBeforeSuspension: 3,
   // Un chat cuenta para la racha si dura al menos esto
   minChatSecondsForStreak: 10,
+  // Las rachas entre amigos cuentan por día calendario en esta zona horaria (por defecto Argentina, UTC−3)
+  streakUtcOffsetHours: Number(env.STREAK_UTC_OFFSET_HOURS ?? -3),
   rateLimit: {
     apiPer15Min: Number(env.RATE_LIMIT_API ?? 600),
     authPer15Min: Number(env.RATE_LIMIT_AUTH ?? 20),

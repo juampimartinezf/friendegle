@@ -120,3 +120,15 @@ CREATE TABLE IF NOT EXISTS auto_violations (
 CREATE INDEX IF NOT EXISTS idx_violations_user ON auto_violations(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_violations_ip ON auto_violations(ip_hash, status);
 CREATE INDEX IF NOT EXISTS idx_violations_reporter ON auto_violations(reporter_ip_hash, created_at);
+
+-- Historial de cambios de las rachas entre amigos
+CREATE TABLE IF NOT EXISTS streak_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  friendship_id INTEGER NOT NULL,
+  event TEXT NOT NULL,          -- 'started' | 'increment' | 'broken' | 'attempt_failed' | 'recovered' | 'reset'
+  streak_count INTEGER NOT NULL,
+  recovery_attempts INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(friendship_id) REFERENCES friends(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_streak_logs_friendship ON streak_logs(friendship_id, id);

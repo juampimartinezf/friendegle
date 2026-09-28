@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Avatar } from './components/AvatarPicker';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { useSocketEvent } from './hooks/useSocket';
 import { api, type DirectMessage } from './services/api';
@@ -42,33 +43,61 @@ function PublicOnly({ children }: { children: ReactNode }) {
   return user ? <Navigate to="/" replace /> : children;
 }
 
-function Notifications({ onChange }: { onChange: () => void }) {
-  const [toast, setToast] = useState<string | null>(null);
+type Toast = { text: string; to?: string; avatarUrl?: string | null };
+
+/**
+ * Avisos emergentes para usuarios con cuenta. Vive a nivel de toda la app (también en el videochat,
+ * que es donde suelen hacerse amigos). Si el aviso tiene destino, al pulsarlo se abre.
+ */
+function Notifications() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const { pathname } = useLocation();
-  const show = useCallback(
-    (text: string) => {
-      setToast(text);
-      onChange();
-      setTimeout(() => setToast(null), 4000);
-    },
-    [onChange],
+  const [toast, setToast] = useState<Toast | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const show = useCallback((t: Toast, ms = 4000) => {
+    setToast(t);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setToast(null), ms);
+  }, []);
+
+  useSocketEvent('friend:request', useCallback(() => show({ text: '🤝 Tienes una nueva solicitud de amistad', to: '/friends' }), [show]));
+  useSocketEvent<{ friendId: number; name: string; avatarUrl: string | null }>(
+    'friend:new',
+    useCallback(
+      (f) => show({ text: `🎉 ¡Saluda a tu nuevo amigo ${f.name}!`, to: `/messages/${f.friendId}`, avatarUrl: f.avatarUrl }, 8000),
+      [show],
+    ),
   );
-  useSocketEvent('friend:request', useCallback(() => show('🤝 Tienes una nueva solicitud de amistad'), [show]));
-  useSocketEvent('friend:accepted', useCallback(() => show('🎉 Aceptaron tu solicitud de amistad'), [show]));
   useSocketEvent<DirectMessage>(
     'dm:new',
     useCallback(
       (m) => {
         // senderName solo viene en el aviso al destinatario; no avisar si ya tiene esa conversación abierta
         if (!m.senderName || pathname === `/messages/${m.senderId}`) return;
-        show(`💬 ${m.senderName}: ${m.body.length > 60 ? m.body.slice(0, 60) + '…' : m.body}`);
+        show({ text: `💬 ${m.senderName}: ${m.body.length > 60 ? m.body.slice(0, 60) + '…' : m.body}`, to: `/messages/${m.senderId}` });
       },
       [show, pathname],
     ),
   );
-  if (!toast) return null;
+
+  if (!user || !toast) return null;
+  const open = () => {
+    setToast(null);
+    if (toast.to) navigate(toast.to);
+  };
   return (
-    <div className="fixed bottom-6 right-6 z-50 rounded-xl bg-brand-600 px-4 py-3 font-medium text-white shadow-xl shadow-brand-800/20">{toast}</div>
+    <button
+      onClick={open}
+      role="status"
+      className="fixed left-1/2 top-4 z-50 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-3 rounded-xl bg-brand-600 px-4 py-3 text-left font-medium text-white shadow-xl shadow-brand-800/20 transition hover:bg-brand-700"
+    >
+      {toast.avatarUrl && <Avatar avatarUrl={toast.avatarUrl} size="sm" />}
+      <span>
+        {toast.text}
+        {toast.to && <span className="block text-xs font-normal text-white/80">Pulsa para abrir</span>}
+      </span>
+    </button>
   );
 }
 
@@ -93,6 +122,8 @@ function AppLayout() {
   useEffect(refreshUnread, [refreshUnread]);
   useSocketEvent('dm:new', refreshUnread);
   useSocketEvent('dm:read', refreshUnread);
+  useSocketEvent('friend:request', refreshRequests);
+  useSocketEvent('friend:accepted', refreshRequests);
 
   return (
     <div className="flex h-full flex-col">
@@ -109,7 +140,6 @@ function AppLayout() {
           <RoutesWithRefresh refresh={refreshRequests} />
         </main>
       </div>
-      {user && <Notifications onChange={refreshRequests} />}
     </div>
   );
 }
@@ -135,6 +165,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <Notifications />
         <Routes>
           <Route path="/login" element={<PublicOnly><LoginPage /></PublicOnly>} />
           <Route path="/register" element={<PublicOnly><RegisterPage /></PublicOnly>} />

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { areFriends, db, isBlockedEitherWay } from '../database/db.js';
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js';
 import { notifyUser } from '../sockets/videoSignaling.js';
+import { bothMessagedToday, recordFriendChatDay, withStreak, type StreakState } from '../streaks.js';
 
 // Mensajes privados de texto entre amigos aceptados (fuera del videochat).
 // Solo se puede leer o escribir una conversación mientras sois amigos y nadie ha bloqueado al otro.
@@ -45,6 +46,7 @@ messagesRouter.get('/conversations', (req: AuthedRequest, res) => {
     .prepare(
       `SELECT u.id AS friendId, u.username, u.real_name AS realName, u.avatar_url AS avatarUrl, u.is_online AS isOnline,
               last.body AS lastBody, last.sender_id AS lastSenderId, last.created_at AS lastAt,
+              f.streak_count, f.last_streak_day, f.streak_broken_at, f.recovery_attempts,
               (SELECT COUNT(*) FROM direct_messages
                 WHERE sender_id = u.id AND recipient_id = :me AND read_at IS NULL) AS unread
        FROM friends f
@@ -56,8 +58,8 @@ messagesRouter.get('/conversations', (req: AuthedRequest, res) => {
        WHERE f.status = 'accepted' AND (f.user1_id = :me OR f.user2_id = :me)
        ORDER BY last.id IS NULL, last.id DESC, u.username`,
     )
-    .all({ me });
-  res.json({ conversations });
+    .all({ me }) as StreakState[];
+  res.json({ conversations: conversations.map(withStreak) });
 });
 
 /** Últimos mensajes de una conversación, del más antiguo al más reciente. */
@@ -94,6 +96,11 @@ messagesRouter.post('/:friendId', (req: AuthedRequest, res) => {
   // Tiempo real: al amigo (notificación) y a las otras pestañas del remitente
   notifyUser(friendId, 'dm:new', { ...message, senderName: sender.real_name || sender.username });
   notifyUser(req.userId!, 'dm:new', message);
+  // Racha: el día cuenta cuando los DOS se escribieron hoy
+  if (bothMessagedToday(req.userId!, friendId) && recordFriendChatDay(req.userId!, friendId)) {
+    notifyUser(friendId, 'streak:update', {});
+    notifyUser(req.userId!, 'streak:update', {});
+  }
   res.status(201).json({ message });
 });
 

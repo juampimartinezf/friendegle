@@ -19,6 +19,9 @@ ensureColumn('reports', 'reviewed_at', 'TIMESTAMP');
 ensureColumn('reports', 'reviewed_by', 'INTEGER');
 ensureColumn('users', 'banned_until', 'TIMESTAMP'); // ban temporal (moderación automática)
 ensureColumn('ip_bans', 'expires_at', 'TIMESTAMP'); // NULL = permanente
+ensureColumn('friends', 'last_streak_day', 'TEXT'); // último día (YYYY-MM-DD) que contó para la racha
+ensureColumn('friends', 'streak_broken_at', 'TEXT'); // día en que se rompió (NULL si está activa)
+ensureColumn('friends', 'recovery_attempts', 'INTEGER DEFAULT 0'); // días fallados desde que se rompió (0-3)
 db.exec('CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at)');
 
 // Nadie está en línea al arrancar el servidor

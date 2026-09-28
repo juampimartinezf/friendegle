@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { db } from '../database/db.js';
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js';
-import { notifyUser } from '../sockets/videoSignaling.js';
+import { notifyNewFriends, notifyUser } from '../sockets/videoSignaling.js';
+import { withStreak, type StreakState } from '../streaks.js';
 
 // Las solicitudes de amistad se ENVÍAN solo desde un chat en curso (evento de socket
 // `chat:add-friend`), así el cliente nunca conoce el id real del desconocido.
@@ -24,14 +25,15 @@ friendsRouter.get('/', (req: AuthedRequest, res) => {
   const friends = db
     .prepare(
       `SELECT f.id AS friendshipId, u.id, u.username, u.real_name AS realName, u.avatar_url AS avatarUrl,
-              u.is_online AS isOnline, u.last_seen AS lastSeen
+              u.is_online AS isOnline, u.last_seen AS lastSeen,
+              f.streak_count, f.last_streak_day, f.streak_broken_at, f.recovery_attempts
        FROM friends f
        JOIN users u ON u.id = CASE WHEN f.user1_id = ? THEN f.user2_id ELSE f.user1_id END
        WHERE f.status = 'accepted' AND (f.user1_id = ? OR f.user2_id = ?)
        ORDER BY u.is_online DESC, u.last_seen DESC`,
     )
-    .all(req.userId, req.userId, req.userId);
-  res.json({ friends });
+    .all(req.userId, req.userId, req.userId) as StreakState[];
+  res.json({ friends: friends.map(withStreak) });
 });
 
 friendsRouter.get('/requests', (req: AuthedRequest, res) => {
@@ -55,6 +57,7 @@ friendsRouter.post('/:id/accept', (req: AuthedRequest, res) => {
   }
   db.prepare(`UPDATE friends SET status = 'accepted' WHERE id = ?`).run(row.id);
   notifyUser(row.user1_id, 'friend:accepted', {});
+  notifyNewFriends(row.user1_id, row.user2_id);
   res.json({ ok: true });
 });
 

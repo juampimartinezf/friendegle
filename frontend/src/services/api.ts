@@ -25,6 +25,13 @@ export interface Me {
   isAdmin: boolean;
 }
 
+export interface StreakView {
+  count: number;
+  status: 'active' | 'at_risk' | 'none';
+  /** Días que quedan para recuperarla, contando hoy (si está en peligro) */
+  chancesLeft: number;
+}
+
 export interface Friend {
   friendshipId: number;
   id: number;
@@ -33,6 +40,7 @@ export interface Friend {
   avatarUrl: string | null;
   isOnline: number;
   lastSeen: string | null;
+  streak: StreakView;
 }
 
 export interface FriendProfile {
@@ -81,6 +89,7 @@ export interface Conversation {
   lastSenderId: number | null;
   lastAt: string | null;
   unread: number;
+  streak: StreakView;
 }
 
 export const MAX_DM_LENGTH = 1000;

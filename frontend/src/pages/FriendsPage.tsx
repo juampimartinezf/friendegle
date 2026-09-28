@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, parseDbDate, type Friend, type FriendRequest } from '../services/api';
 import { useSocketEvent } from '../hooks/useSocket';
 import UserCard from '../components/UserCard';
+import StreakBadge from '../components/StreakBadge';
 
 export default function FriendsPage({ onRequestsChanged }: { onRequestsChanged: () => void }) {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ export default function FriendsPage({ onRequestsChanged }: { onRequestsChanged: 
   useSocketEvent('friend:request', load);
   useSocketEvent('friend:accepted', load);
   useSocketEvent('friends:changed', load);
+  useSocketEvent('streak:update', load);
 
   async function respond(id: number, accept: boolean) {
     await (accept ? api.acceptRequest(id) : api.rejectRequest(id));
@@ -88,6 +90,7 @@ export default function FriendsPage({ onRequestsChanged }: { onRequestsChanged: 
                 isOnline={f.isOnline}
                 lastSeen={f.lastSeen}
                 onClick={() => navigate(`/friends/${f.id}`)}
+                badge={<StreakBadge streak={f.streak} />}
                 actions={
                   <>
                   <button

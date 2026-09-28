@@ -12,6 +12,7 @@ import { reportsRouter } from './routes/reports.js';
 import { adminRouter } from './routes/admin.js';
 import { messagesRouter } from './routes/messages.js';
 import { setupVideoSignaling } from './sockets/videoSignaling.js';
+import { sweepStreaks } from './streaks.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -44,6 +45,10 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 const httpServer = createServer(app);
 const io = new Server(httpServer, { cors: { origin: config.clientOrigins }, maxHttpBufferSize: 64_000 });
 setupVideoSignaling(io);
+
+// Rachas: marcar rotas / intentos fallados / reinicios aunque nadie abra la app
+sweepStreaks();
+setInterval(sweepStreaks, 60 * 60 * 1000).unref();
 
 httpServer.listen(config.port, () => {
   console.log(`Friendegle API escuchando en :${config.port} (${config.isProd ? 'producción' : 'desarrollo'})`);

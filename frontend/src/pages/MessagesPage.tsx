@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useSocketEvent } from '../hooks/useSocket';
 import { Avatar } from '../components/AvatarPicker';
+import StreakBadge from '../components/StreakBadge';
 import { api, MAX_DM_LENGTH, parseDbDate, type Conversation, type DirectMessage } from '../services/api';
 
 const time = (s: string | null) =>
@@ -70,6 +71,7 @@ export default function MessagesPage() {
     ),
   );
   useSocketEvent('friends:changed', loadConversations);
+  useSocketEvent('streak:update', loadConversations);
 
   async function send(e: FormEvent) {
     e.preventDefault();
@@ -115,7 +117,10 @@ export default function MessagesPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <p className={`truncate ${c.unread ? 'font-bold' : 'font-semibold'}`}>{name(c)}</p>
+                    <p className="flex min-w-0 items-center gap-1.5">
+                      <span className={`truncate ${c.unread ? 'font-bold' : 'font-semibold'}`}>{name(c)}</span>
+                      <StreakBadge streak={c.streak} />
+                    </p>
                     <span className="shrink-0 text-xs text-ink-soft">{time(c.lastAt)}</span>
                   </div>
                   <p className={`truncate text-sm ${c.unread ? 'font-semibold text-ink' : 'text-ink-soft'}`}>
@@ -148,6 +153,7 @@ export default function MessagesPage() {
                 <Link to={`/friends/${current.friendId}`} className="flex min-w-0 items-center gap-3 hover:opacity-80">
                   <Avatar avatarUrl={current.avatarUrl} size="sm" />
                   <div className="min-w-0">
+                    <StreakBadge streak={current.streak} detailed />
                     <p className="truncate font-semibold">{name(current)}</p>
                     <p className="text-xs text-ink-soft">{current.isOnline ? 'En línea' : `@${current.username}`}</p>
                   </div>

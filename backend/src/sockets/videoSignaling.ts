@@ -5,6 +5,7 @@ import { areFriends, blockUser, db, isBlockedEitherWay, isIpBanned, isUserBanned
 import { verifyToken } from '../middleware/auth.js';
 import { REPORT_REASONS } from '../routes/reports.js';
 import { AUTO_CATEGORIES, recordViolation, reporterQuotaExceeded, type AutoCategory } from '../autoModeration.js';
+import { recordFriendChatDay } from '../streaks.js';
 
 /**
  * Señalización WebRTC + emparejamiento aleatorio.
@@ -137,6 +138,19 @@ export function disconnectIpHash(ipHash: string) {
   }
 }
 
+/** "🎉 ¡Saluda a tu nuevo amigo!" a los dos, con el nombre y avatar del otro (ya son amigos: pueden verlos). */
+export function notifyNewFriends(a: number, b: number) {
+  const info = (id: number) =>
+    db.prepare('SELECT id, username, real_name, avatar_url FROM users WHERE id = ?').get(id) as
+      | { id: number; username: string; real_name: string | null; avatar_url: string | null }
+      | undefined;
+  const ua = info(a), ub = info(b);
+  if (!ua || !ub) return;
+  const payload = (u: NonNullable<typeof ua>) => ({ friendId: u.id, name: u.real_name || u.username, avatarUrl: u.avatar_url });
+  notifyUser(a, 'friend:new', payload(ub));
+  notifyUser(b, 'friend:new', payload(ua));
+}
+
 /** Envía un evento a todas las pestañas de un usuario registrado. */
 export function notifyUser(userId: number, event: string, payload: unknown) {
   io?.to(`user:${userId}`).emit(event, payload);
@@ -219,6 +233,10 @@ function endMatch(socketId: string, reasonForPartner: 'partner_left' | 'partner_
         `UPDATE friends SET last_chat_at = CURRENT_TIMESTAMP
          WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)`,
       ).run(ua, ub, ub, ua);
+      if (seconds >= config.minChatSecondsForStreak && recordFriendChatDay(ua, ub)) {
+        notifyUser(ua, 'streak:update', {});
+        notifyUser(ub, 'streak:update', {});
+      }
     }
   }
   if (seconds >= config.minChatSecondsForStreak) {
@@ -285,6 +303,7 @@ function handleAddFriend(socket: Socket) {
     partner.emit('friend:status', { state: 'accepted' });
     notifyUser(me, 'friends:changed', {});
     notifyUser(them, 'friend:accepted', {});
+    notifyNewFriends(me, them);
     return;
   }
 

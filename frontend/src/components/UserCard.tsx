@@ -9,9 +9,10 @@ interface Props {
   lastSeen: string | null;
   onClick?: () => void;
   actions?: ReactNode;
+  badge?: ReactNode;
 }
 
-export default function UserCard({ name, avatarUrl, isOnline, lastSeen, onClick, actions }: Props) {
+export default function UserCard({ name, avatarUrl, isOnline, lastSeen, onClick, actions, badge }: Props) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-celeste-200 bg-surface p-3 transition hover:bg-celeste-100">
       <button onClick={onClick} className="flex min-w-0 flex-1 items-center gap-3 text-left">
@@ -20,7 +21,10 @@ export default function UserCard({ name, avatarUrl, isOnline, lastSeen, onClick,
           {!!isOnline && <span className="absolute bottom-0 right-0 size-3 rounded-full bg-emerald-400 ring-2 ring-surface" />}
         </div>
         <div className="min-w-0">
-          <p className="truncate font-semibold">{name}</p>
+          <p className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-semibold">{name}</span>
+            {badge}
+          </p>
           <p className={`text-xs ${isOnline ? 'text-emerald-600 dark:text-emerald-400' : 'text-ink-soft'}`}>{formatLastSeen(isOnline, lastSeen)}</p>
         </div>
       </button>
