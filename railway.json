@@ -1,0 +1,12 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "buildCommand": "cd backend && npm ci && npm run build",
+    "watchPatterns": ["backend/**", "railway.json"]
+  },
+  "deploy": {
+    "startCommand": "cd backend && npm run start:prod",
+    "healthcheckPath": "/api/health",
+    "restartPolicyType": "ON_FAILURE"
+  }
+}
