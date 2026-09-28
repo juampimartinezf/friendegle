@@ -13,7 +13,9 @@ function analytics(env: Record<string, string>): { tag: string; scriptOrigin: st
   if (env.VITE_PLAUSIBLE_DOMAIN) {
     const src = env.VITE_PLAUSIBLE_SRC || 'https://plausible.io/js/script.js';
     const origin = new URL(src).origin;
-    return { tag: `<script defer data-domain="${escape(env.VITE_PLAUSIBLE_DOMAIN)}" src="${escape(src)}"></script>`, scriptOrigin: origin, connect: [origin] };
+    // Plausible espera solo el dominio: se toleran "https://…" o una barra final pegados por error
+    const domain = env.VITE_PLAUSIBLE_DOMAIN.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    return { tag: `<script defer data-domain="${escape(domain)}" src="${escape(src)}"></script>`, scriptOrigin: origin, connect: [origin] };
   }
   if (env.VITE_UMAMI_WEBSITE_ID) {
     const src = env.VITE_UMAMI_SRC || 'https://cloud.umami.is/script.js';
@@ -71,8 +73,14 @@ export default defineConfig(({ mode }) => {
     console.warn(`\n⚠️  ${msg}.\n`);
   }
 
+  const stats = analytics(env);
+  // Visible en los logs de build de Vercel: confirma si la analítica quedó incluida
+  if (mode === 'production') {
+    console.log(stats ? `\n📊 Analítica incluida: ${stats.tag}\n` : '\n📊 Sin analítica (VITE_PLAUSIBLE_DOMAIN / VITE_UMAMI_WEBSITE_ID vacías)\n');
+  }
+
   return {
-    plugins: [react(), tailwindcss(), contentSecurityPolicy(apiUrl, analytics(env))],
+    plugins: [react(), tailwindcss(), contentSecurityPolicy(apiUrl, stats)],
     build: {
       target: 'es2022',
       sourcemap: false,
