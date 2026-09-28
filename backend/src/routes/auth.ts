@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { db, type UserRow } from '../database/db.js';
 import { rateLimit, requireAuth, signToken, type AuthedRequest } from '../middleware/auth.js';
 import { config } from '../config.js';
+import { randomAvatar } from '../avatar.js';
 
 export const authRouter = Router();
 
@@ -57,7 +58,7 @@ authRouter.post('/register', authLimiter, async (req, res) => {
       .prepare(
         'INSERT INTO users (email, password_hash, username, real_name, avatar_url, terms_accepted_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
       )
-      .run(email, hash, username, realName || null, 'preset:fox');
+      .run(email, hash, username, realName || null, randomAvatar());
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid) as UserRow;
     res.status(201).json({ token: signToken(user.id), user: selfView(user) });
   } catch (err: any) {

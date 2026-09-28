@@ -7,6 +7,9 @@ import ChatPanel from '../components/ChatPanel';
 import { Logo } from '../components/Header';
 import ThemeToggle from '../components/ThemeToggle';
 import { REPORT_REASONS } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
+import { Avatar } from '../components/AvatarPicker';
+import { anonymousAvatar, randomSeed } from '../avatar';
 
 function Spinner({ text }: { text: string }) {
   return (
@@ -31,7 +34,10 @@ export default function VideoChatPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const demo = params.has('demo');
-  const chat = useWebRTC({ demo });
+  const { user } = useAuth();
+  // Mi avatar: el de mi cuenta o, en modo anónimo, uno aleatorio para esta visita
+  const [myAvatar] = useState(() => user?.avatarUrl || anonymousAvatar(randomSeed()));
+  const chat = useWebRTC({ demo, avatarUrl: myAvatar });
   const [reportOpen, setReportOpen] = useState(false);
 
   const connected = chat.status === 'connected' || chat.status === 'connecting';
@@ -45,6 +51,11 @@ export default function VideoChatPage() {
       </div>
     ) : chat.status === 'starting' ? (
       <Spinner text="Encendiendo cámara…" />
+    ) : chat.status === 'connecting' && chat.match ? (
+      <div className="flex flex-col items-center gap-3">
+        <Avatar avatarUrl={chat.match.partnerAvatar} size="lg" />
+        <p className="text-lg">Conectando vídeo…</p>
+      </div>
     ) : chat.status === 'connecting' ? (
       <Spinner text="Conectando vídeo…" />
     ) : (
@@ -55,7 +66,7 @@ export default function VideoChatPage() {
     chat.notice && <Banner key="notice" tone="info">{chat.notice}</Banner>,
     chat.usingFakeCamera && (
       <Banner key="cam" tone="warn">
-        No se pudo acceder a tu cámara; se envía una imagen de prueba.
+        No se pudo acceder a tu cámara; el otro usuario ve tu avatar.
       </Banner>
     ),
     chat.partnerWantsFriend && chat.friendState === 'none' && (
@@ -77,6 +88,7 @@ export default function VideoChatPage() {
         <VideoWindow
           stream={chat.remoteStream}
           label={chat.match ? `${chat.match.partnerLabel}${demo ? ' · demo' : ''}` : undefined}
+          avatarUrl={chat.match?.partnerAvatar}
           className="min-h-0 rounded-2xl shadow-md"
           placeholder={placeholder}
         />
@@ -85,6 +97,7 @@ export default function VideoChatPage() {
           muted
           mirrored={!chat.usingFakeCamera}
           label={chat.match ? `Tú · ${chat.match.myLabel}` : 'Tú'}
+          avatarUrl={myAvatar}
           className="min-h-0 rounded-2xl shadow-md"
         />
       </section>

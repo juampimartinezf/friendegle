@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { areFriends, blockUser, db, FRIEND_PROFILE_COLUMNS, type UserRow } from '../database/db.js';
 import { requireAuth, type AuthedRequest } from '../middleware/auth.js';
 import { selfView } from './auth.js';
+import { isValidAvatar } from '../avatar.js';
 import { disconnectUser, notifyUser } from '../sockets/videoSignaling.js';
 
 // PRIVACIDAD: este router NO tiene endpoints de búsqueda ni de listado de usuarios.
@@ -13,8 +14,8 @@ usersRouter.use(requireAuth);
 
 const profileSchema = z.object({
   realName: z.string().trim().max(60).nullable().optional(),
-  // Solo avatares predefinidos: evita URLs arbitrarias (tracking pixels, contenido externo)
-  avatarUrl: z.string().regex(/^preset:[a-z]{2,20}$/).optional(),
+  // Solo configuraciones de avatar conocidas: nunca URLs ni SVG arbitrarios (ver src/avatar.ts)
+  avatarUrl: z.string().refine(isValidAvatar, 'Avatar no válido').optional(),
   bio: z.string().trim().max(280).nullable().optional(),
   location: z.string().trim().max(60).nullable().optional(),
 });

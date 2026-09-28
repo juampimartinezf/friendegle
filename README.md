@@ -65,7 +65,7 @@ Sin `VITE_API_URL` avisa y usa `/api` relativo (el proxy de `vite preview` lo re
 | Contraseñas / auth | bcrypt (coste 12), JWT de 7 días, mensajes de error que no revelan qué emails existen. |
 | Chat de texto en la videollamada | Va por el canal de datos WebRTC (cifrado DTLS, por el mismo TURN que el vídeo): el servidor de Friendegle nunca ve los mensajes. Solo viven en memoria durante el chat actual y se borran al saltar o terminar. Máximo 500 caracteres por mensaje; se muestran siempre como texto, nunca como HTML. |
 | **IP oculta entre usuarios** | Todo el vídeo pasa por un servidor TURN propio (`iceTransportPolicy: 'relay'`). Ver [Privacidad de IP](#privacidad-de-ip-servidor-turn). |
-| Avatares | Solo avatares predefinidos (`preset:fox`…): no se aceptan URLs externas (evita tracking pixels). |
+| Avatares | Personalizables estilo Bitmoji con [DiceBear](https://www.dicebear.com/) (estilo *Avataaars*, uso comercial libre), generados **en el navegador**: sin peticiones a terceros. En la BD solo se guarda una configuración (`dicebear:{...}`) que el servidor valida contra claves y valores permitidos (`backend/src/avatar.ts`); nunca URLs ni SVG arbitrarios. Cada cuenta nace con uno aleatorio. En el videochat se ve junto al `User_XXXX` y, sin cámara, sustituye al vídeo. |
 
 **En producción, además:**
 

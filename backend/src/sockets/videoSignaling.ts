@@ -224,6 +224,11 @@ function endMatch(socketId: string, reasonForPartner: 'partner_left' | 'partner_
   }
 }
 
+function avatarOf(userId: number | null): string | null {
+  if (!userId) return null;
+  return (db.prepare('SELECT avatar_url FROM users WHERE id = ?').get(userId) as { avatar_url: string | null } | undefined)?.avatar_url ?? null;
+}
+
 function tryMatch(socket: Socket) {
   for (let i = 0; i < waiting.length; i++) {
     const other = io.sockets.sockets.get(waiting[i]);
@@ -244,8 +249,11 @@ function tryMatch(socket: Socket) {
     const bReg = !!dataOf(socket).userId;
     // `canAddFriend` solo es true si AMBOS tienen cuenta
     const canAddFriend = aReg && bReg;
-    other.emit('chat:matched', { myLabel: labelA, partnerLabel: labelB, initiator: true, canAddFriend, iceServers: iceServersFor(labelA) });
-    socket.emit('chat:matched', { myLabel: labelB, partnerLabel: labelA, initiator: false, canAddFriend, iceServers: iceServersFor(labelB) });
+    // Solo la configuración del dibujo del avatar (null = anónimo: el cliente genera uno aleatorio por chat)
+    const avatarA = avatarOf(dataOf(other).userId);
+    const avatarB = avatarOf(dataOf(socket).userId);
+    other.emit('chat:matched', { myLabel: labelA, partnerLabel: labelB, partnerAvatar: avatarB, initiator: true, canAddFriend, iceServers: iceServersFor(labelA) });
+    socket.emit('chat:matched', { myLabel: labelB, partnerLabel: labelA, partnerAvatar: avatarA, initiator: false, canAddFriend, iceServers: iceServersFor(labelB) });
     return;
   }
   waiting.push(socket.id);

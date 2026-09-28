@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Peer from 'simple-peer/simplepeer.min.js';
 import type { Instance as PeerInstance, SignalData } from 'simple-peer';
 import { useSocket } from './useSocket';
+import { anonymousAvatar, avatarDataUri, parseAvatar } from '../avatar';
 
 export type ChatStatus = 'starting' | 'searching' | 'connecting' | 'connected' | 'suspended';
 export type FriendState = 'none' | 'sent' | 'accepted' | 'already' | 'unavailable';
@@ -20,6 +21,8 @@ const BOT_REPLIES = ['¡Hola! 👋', 'Soy un bot de prueba, pero te leo perfecta
 export interface MatchInfo {
   myLabel: string;
   partnerLabel: string;
+  /** Configuración del avatar del compañero (los anónimos reciben uno aleatorio por chat) */
+  partnerAvatar: string;
   canAddFriend: boolean;
 }
 
@@ -56,7 +59,9 @@ function isSafeSignal(data: SignalData): boolean {
  * Stream de vídeo sintético (canvas). Se usa si no hay cámara disponible
  * y como "desconocido" en el modo demo, para poder probar sin otra persona.
  */
-function createFakeStream(text: string, hue: number): MediaStream {
+function createFakeStream(text: string, hue: number, avatarUrl?: string): MediaStream {
+  const cfg = parseAvatar(avatarUrl);
+  const avatar = cfg ? Object.assign(new Image(), { src: avatarDataUri(cfg) }) : null;
   const canvas = document.createElement('canvas');
   canvas.width = 640;
   canvas.height = 480;
@@ -71,10 +76,21 @@ function createFakeStream(text: string, hue: number): MediaStream {
     g.addColorStop(1, `hsl(${(hue + t + 80) % 360} 70% 20%)`);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 640, 480);
-    ctx.fillStyle = 'rgba(255,255,255,.85)';
-    ctx.beginPath();
-    ctx.arc(320 + Math.sin(t / 20) * 120, 220, 50, 0, Math.PI * 2);
-    ctx.fill();
+    if (avatar?.complete) {
+      // Sin cámara: se muestra el avatar, con un leve balanceo para que se note que es vídeo en vivo
+      const size = 260 + Math.sin(t / 12) * 6;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(320, 205, size / 2, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(avatar, 320 - size / 2, 205 - size / 2, size, size);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,.85)';
+      ctx.beginPath();
+      ctx.arc(320 + Math.sin(t / 20) * 120, 220, 50, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.font = 'bold 32px system-ui';
     ctx.textAlign = 'center';
     ctx.fillText(text, 320, 400);
@@ -82,7 +98,7 @@ function createFakeStream(text: string, hue: number): MediaStream {
   return stream;
 }
 
-async function getLocalMedia(): Promise<{ stream: MediaStream; fake: boolean }> {
+async function getLocalMedia(avatarUrl?: string): Promise<{ stream: MediaStream; fake: boolean }> {
   for (const constraints of [{ video: true, audio: true }, { video: true, audio: false }]) {
     try {
       return { stream: await navigator.mediaDevices.getUserMedia(constraints), fake: false };
@@ -90,12 +106,12 @@ async function getLocalMedia(): Promise<{ stream: MediaStream; fake: boolean }> 
       /* probar la siguiente opción */
     }
   }
-  return { stream: createFakeStream('Sin cámara', 200), fake: true };
+  return { stream: createFakeStream('Cámara apagada', 200, avatarUrl), fake: true };
 }
 
 const randomLabel = () => `User_${Math.floor(1000 + Math.random() * 9000)}`;
 
-export function useWebRTC({ demo = false }: { demo?: boolean } = {}) {
+export function useWebRTC({ demo = false, avatarUrl }: { demo?: boolean; avatarUrl?: string } = {}) {
   const socket = useSocket();
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -138,10 +154,11 @@ export function useWebRTC({ demo = false }: { demo?: boolean } = {}) {
     if (demo) {
       // Modo demo: un "desconocido" sintético aparece tras un momento
       demoTimer.current = setTimeout(() => {
-        const s = createFakeStream('Bot de prueba 🤖', Math.random() * 360);
+        const botAvatar = anonymousAvatar(randomLabel());
+        const s = createFakeStream('Bot de prueba 🤖', Math.random() * 360, botAvatar);
         demoStreamRef.current = s;
         const partnerLabel = randomLabel();
-        setMatch({ myLabel: randomLabel(), partnerLabel, canAddFriend: false });
+        setMatch({ myLabel: randomLabel(), partnerLabel, partnerAvatar: botAvatar, canAddFriend: false });
         setRemoteStream(s);
         setStatus('connected');
         setMessages([{ id: ++messageId.current, from: 'system', text: `Conectado con ${partnerLabel} (bot de prueba).` }]);
@@ -155,7 +172,7 @@ export function useWebRTC({ demo = false }: { demo?: boolean } = {}) {
   // Cámara al montar; todo se libera al desmontar
   useEffect(() => {
     let cancelled = false;
-    getLocalMedia().then(({ stream, fake }) => {
+    getLocalMedia(avatarUrl).then(({ stream, fake }) => {
       if (cancelled) return stream.getTracks().forEach((t) => t.stop());
       streamRef.current = stream;
       setLocalStream(stream);
@@ -180,10 +197,15 @@ export function useWebRTC({ demo = false }: { demo?: boolean } = {}) {
     if (demo) return;
     let wasDisconnected = false;
 
-    const onMatched = (m: MatchInfo & { initiator: boolean; iceServers?: RTCIceServer[] }) => {
+    const onMatched = (m: Omit<MatchInfo, 'partnerAvatar'> & { partnerAvatar: string | null; initiator: boolean; iceServers?: RTCIceServer[] }) => {
       destroyPeer();
       setNotice(null);
-      setMatch({ myLabel: m.myLabel, partnerLabel: m.partnerLabel, canAddFriend: m.canAddFriend });
+      setMatch({
+        myLabel: m.myLabel,
+        partnerLabel: m.partnerLabel,
+        partnerAvatar: m.partnerAvatar ?? anonymousAvatar(m.partnerLabel),
+        canAddFriend: m.canAddFriend,
+      });
       setStatus('connecting');
       pushMessage('system', `Conectando con ${m.partnerLabel}…`);
       const peer = new Peer({
