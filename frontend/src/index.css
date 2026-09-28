@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+/*
+ * Tema oscuro por clase: <html class="dark">. La clase la pone public/theme-init.js antes de
+ * pintar (según localStorage "theme"; por defecto, claro) y el botón del Header la alterna.
+ * `dark:` en las clases de Tailwind responde a esa clase, no a prefers-color-scheme.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Paleta de Friendegle. Tailwind v4 genera las utilidades con var(--color-…),
+   así que el tema oscuro solo tiene que redefinir estas variables en .dark */
+@theme {
+  --color-celeste-50: #f3f9ff;
+  --color-celeste-100: #e3f2fd; /* fondo principal */
+  --color-celeste-200: #bbdefb; /* sidebar, bordes */
+  --color-celeste-300: #90caf9;
+  --color-celeste-400: #64b5f6;
+  --color-brand-500: #1e88e5;
+  --color-brand-600: #1976d2; /* botones */
+  --color-brand-700: #1565c0;
+  --color-brand-800: #0d47a1;
+  --color-ink: #0b2540; /* texto principal */
+  --color-ink-soft: #46627d; /* texto secundario */
+  --color-surface: #ffffff; /* tarjetas, paneles, inputs */
+  --color-accent: #1565c0; /* enlaces y texto de marca */
+  --color-video: #0b2540; /* fondo de los vídeos: oscuro en ambos temas */
+}
+
+.dark {
+  color-scheme: dark;
+  --color-celeste-50: #23233f;
+  --color-celeste-100: #1a1a2e; /* fondo principal */
+  --color-celeste-200: #2a2a4a;
+  --color-celeste-300: #3b3b63;
+  --color-celeste-400: #5a5a8c;
+  --color-brand-500: #4a95e6;
+  --color-brand-600: #2f7fd8;
+  --color-brand-700: #2566b0; /* hover de botones: más oscuro */
+  --color-brand-800: #0d47a1;
+  --color-ink: #e6ecf5;
+  --color-ink-soft: #9fb0c8;
+  --color-surface: #22223a;
+  --color-accent: #8ec5ff;
+  --color-video: #0e0e1c;
+}
+
+html, body, #root { height: 100%; }
+body {
+  @apply bg-celeste-100 text-ink antialiased;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}

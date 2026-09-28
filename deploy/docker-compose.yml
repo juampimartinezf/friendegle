@@ -1,0 +1,83 @@
+# Friendegle en producción: backend + base de datos (SQLite en volumen) + Caddy (HTTPS) + Coturn.
+# Uso: ./deploy.sh   (equivale a: docker compose --env-file .env.production up -d --build)
+
+name: friendegle
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  backend:
+    build: ../backend
+    image: friendegle-backend:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      TRUST_PROXY: "1"
+      PORT: "4000"
+      DB_PATH: /data/friendegle.db
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:?Falta CLIENT_ORIGIN en .env.production}
+      JWT_SECRET: ${JWT_SECRET:?Falta JWT_SECRET en .env.production}
+      TURN_SECRET: ${TURN_SECRET:?Falta TURN_SECRET en .env.production}
+      TURN_URLS: turn:${TURN_DOMAIN}:3478?transport=udp,turn:${TURN_DOMAIN}:3478?transport=tcp,turns:${TURN_DOMAIN}:5349?transport=tcp
+      STUN_URL: ${STUN_URL:-stun:stun.l.google.com:19302}
+      RATE_LIMIT_API: ${RATE_LIMIT_API:-600}
+      RATE_LIMIT_AUTH: ${RATE_LIMIT_AUTH:-20}
+      RATE_LIMIT_SOCKET: ${RATE_LIMIT_SOCKET:-120}
+    volumes:
+      - db:/data # "DB": SQLite persistente
+    expose:
+      - "4000" # solo accesible desde Caddy, nunca publicado a internet
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    logging: *logging
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80" # retos ACME de Let's Encrypt y redirección a HTTPS
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?Falta API_DOMAIN}
+      TURN_DOMAIN: ${TURN_DOMAIN:?Falta TURN_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?Falta ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # certificados: no borrar (límites de Let's Encrypt)
+      - caddy_config:/config
+    logging: *logging
+
+  coturn:
+    image: coturn/coturn:4.6
+    restart: unless-stopped
+    # Red del host: publicar ~16 000 puertos UDP con Docker es lento y poco fiable
+    network_mode: host
+    volumes:
+      - ../coturn/turnserver.prod.conf:/etc/coturn/turnserver.conf:ro
+      - ./turn-certs:/etc/coturn/certs:ro
+    command:
+      - -c
+      - /etc/coturn/turnserver.conf
+      - --external-ip=${PUBLIC_IP:?Falta PUBLIC_IP}
+      - --listening-ip=${PUBLIC_IP}
+      - --relay-ip=${PUBLIC_IP}
+      - --realm=${TURN_DOMAIN}
+      - --server-name=${TURN_DOMAIN}
+      - --static-auth-secret=${TURN_SECRET}
+    logging: *logging
+
+volumes:
+  db:
+  caddy_data:
+  caddy_config:

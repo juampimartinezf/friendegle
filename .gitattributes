@@ -1,0 +1,7 @@
+# Los scripts y configs se ejecutan en Linux (Droplet): siempre LF aunque se editen en Windows
+*.sh        text eol=lf
+Caddyfile   text eol=lf
+*.conf      text eol=lf
+*.yml       text eol=lf
+Dockerfile  text eol=lf
+.env*       text eol=lf

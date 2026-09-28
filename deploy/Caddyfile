@@ -1,0 +1,22 @@
+# Caddy obtiene y renueva automáticamente los certificados de Let's Encrypt,
+# redirige HTTP → HTTPS y hace de proxy (REST + WebSocket) hacia el backend.
+# Sin directiva `log`: no se escriben logs de acceso con IPs de usuarios.
+{
+	email {$ACME_EMAIL}
+}
+
+{$API_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+	reverse_proxy backend:4000
+}
+
+# Solo existe para que Caddy obtenga y renueve el certificado del TURN.
+# deploy/sync-turn-certs.sh lo copia a coturn (turns: en el puerto 5349).
+{$TURN_DOMAIN} {
+	respond 404
+}
