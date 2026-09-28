@@ -19,7 +19,7 @@ export default function PrivacyPage() {
       <ul>
         <li>
           <b>El vídeo, el audio y los mensajes de texto de los chats.</b> Viajan cifrados entre los dos navegadores a
-          través de nuestro servidor de relay, que solo reenvía los paquetes y no puede leerlos. No se graban ni se
+          través de un servidor de relay (Cloudflare), que solo reenvía los paquetes y no puede leerlos. No se graban ni se
           almacenan en ningún sitio.
         </li>
         <li>Tu dirección IP en la base de datos (ver el punto 3 para la única excepción, cifrada con un hash).</li>
@@ -55,9 +55,8 @@ export default function PrivacyPage() {
 
       <h2>3. Direcciones IP</h2>
       <p>
-        Para que el otro usuario <b>nunca vea tu IP</b>, todo el tráfico del chat pasa por nuestro servidor de relay, que
-        necesariamente la conoce mientras dura la conexión. Los registros técnicos de ese servidor se rotan
-        automáticamente. En la base de datos la IP solo se guarda como hash (no reversible) cuando alguien te reporta o
+        Para que el otro usuario <b>nunca vea tu IP</b>, todo el tráfico del chat pasa por un servidor de relay de Cloudflare,
+        que necesariamente la conoce mientras dura la conexión y la trata según su propia política de privacidad. En la base de datos la IP solo se guarda como hash (no reversible) cuando alguien te reporta o
         para aplicar una suspensión, y para limitar abusos se usa temporalmente en memoria.
       </p>
 
@@ -74,7 +73,8 @@ export default function PrivacyPage() {
       <h2>5. Dónde se guardan y con quién se comparten</h2>
       <ul>
         <li>El frontend se sirve desde Vercel, que registra datos técnicos de las visitas (como la IP) en sus logs.</li>
-        <li>El servidor, la base de datos y el relay de vídeo se alojan en Oracle Cloud.</li>
+        <li>El servidor y la base de datos se alojan en Railway.</li>
+        <li>El relay de vídeo y mensajes lo presta Cloudflare: reenvía los paquetes cifrados sin poder leerlos.</li>
         <li>Solo comunicaremos datos a autoridades cuando la ley lo exija o ante indicios de delitos graves.</li>
       </ul>
 

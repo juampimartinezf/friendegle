@@ -37,6 +37,9 @@ export const config = {
     user: env.TURN_USER ?? 'friendegle',
     pass: env.TURN_PASS ?? 'friendegle123',
     credentialTtlSeconds: 4 * 60 * 60,
+    // Alternativa gestionada: TURN de Cloudflare (sin servidor propio). Si están definidas, tienen prioridad.
+    cloudflareKeyId: env.CLOUDFLARE_TURN_KEY_ID || null,
+    cloudflareApiToken: env.CLOUDFLARE_TURN_API_TOKEN || null,
   },
 };
 
@@ -47,12 +50,14 @@ if (isProd) {
     if (!v || v.length < 32) errors.push(`${name} es obligatorio y debe tener al menos 32 caracteres (openssl rand -hex 32)`);
   };
   requireSecret('JWT_SECRET');
-  requireSecret('TURN_SECRET'); // sin él se usarían credenciales TURN estáticas: relay abierto a cualquiera
+  const cloudflareTurn = !!(env.CLOUDFLARE_TURN_KEY_ID && env.CLOUDFLARE_TURN_API_TOKEN);
+  // Con Coturn propio, sin TURN_SECRET se usarían credenciales estáticas: relay abierto a cualquiera
+  if (!cloudflareTurn) requireSecret('TURN_SECRET');
   if (!env.CLIENT_ORIGIN) errors.push('CLIENT_ORIGIN es obligatorio (p. ej. https://friendegle.com)');
   for (const origin of config.clientOrigins) {
     if (!origin.startsWith('https://') || origin.includes('*')) errors.push(`CLIENT_ORIGIN debe ser https y sin comodines: ${origin}`);
   }
-  if (!env.TURN_URLS || /localhost|127\.0\.0\.1/.test(env.TURN_URLS)) {
+  if (!cloudflareTurn && (!env.TURN_URLS || /localhost|127\.0\.0\.1/.test(env.TURN_URLS))) {
     errors.push('TURN_URLS debe apuntar a tu servidor TURN público');
   }
   if (errors.length) {

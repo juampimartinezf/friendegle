@@ -49,7 +49,8 @@ const yesterday = () => new Date(Date.now() - 86_400_000).toISOString().slice(0,
  * (TURN REST API de coturn: usuario = "caducidad:etiqueta", clave = HMAC-SHA1 en base64),
  * así las credenciales repartidas dejan de valer en unas horas.
  */
-function iceServersFor(label: string): RTCIceServerLike[] {
+export function iceServersFor(label: string): RTCIceServerLike[] {
+  if (cloudflareIceServers) return cloudflareIceServers;
   const { turn } = config;
   let username = turn.user;
   let credential = turn.pass;
@@ -63,6 +64,39 @@ function iceServersFor(label: string): RTCIceServerLike[] {
   ];
 }
 type RTCIceServerLike = { urls: string | string[]; username?: string; credential?: string };
+
+/**
+ * TURN gestionado de Cloudflare: credenciales temporales (6 h) pedidas a su API, guardadas en
+ * memoria y renovadas cada hora, así ninguna caduca durante un chat.
+ * ponytail: todas las conexiones comparten la credencial vigente; por usuario si hiciera falta revocar.
+ */
+let cloudflareIceServers: RTCIceServerLike[] | null = null;
+
+export async function refreshCloudflareIceServers() {
+  const { cloudflareKeyId, cloudflareApiToken } = config.turn;
+  if (!cloudflareKeyId || !cloudflareApiToken) return;
+  try {
+    const res = await fetch(
+      `https://rtc.live.cloudflare.com/v1/turn/keys/${cloudflareKeyId}/credentials/generate-ice-servers`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${cloudflareApiToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ttl: 6 * 60 * 60 }),
+      },
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { iceServers } = (await res.json()) as { iceServers: RTCIceServerLike[] };
+    // El puerto 53 alternativo lo bloquean los navegadores: solo añadiría esperas
+    cloudflareIceServers = iceServers.map((s) => ({
+      ...s,
+      urls: ([] as string[]).concat(s.urls).filter((u) => !/:53(\?|$)/.test(u)),
+    }));
+    console.log('[turn] credenciales de Cloudflare renovadas');
+  } catch (err) {
+    // Se mantienen las anteriores (siguen valiendo varias horas) y se reintenta en la próxima vuelta
+    console.error('[turn] no se pudieron renovar las credenciales de Cloudflare:', (err as Error).message);
+  }
+}
 
 const RELAY = /\btyp relay\b/;
 
@@ -295,6 +329,10 @@ function clientIp(socket: Socket): string {
 
 export function setupVideoSignaling(server: Server) {
   io = server;
+  if (config.turn.cloudflareKeyId) {
+    void refreshCloudflareIceServers();
+    setInterval(refreshCloudflareIceServers, 60 * 60 * 1000).unref();
+  }
 
   io.on('connection', (socket) => {
     const userId = verifyToken(socket.handshake.auth?.token);

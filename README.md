@@ -427,7 +427,8 @@ Plantilla documentada: [`deploy/.env.production.example`](deploy/.env.production
 | `CLIENT_ORIGIN` | ✅ | Orígenes del frontend permitidos por CORS (solo https, sin comodines) |
 | `ADMIN_EMAILS` | — | Emails (separados por comas) con acceso al panel de Moderación |
 | `JWT_SECRET` | ✅ | Firma de sesiones (≥ 32 caracteres). Cambiarlo cierra todas las sesiones |
-| `TURN_SECRET` | ✅ | Secreto compartido backend ↔ Coturn para credenciales TURN de 4 h (≥ 32 caracteres) |
+| `TURN_SECRET` | ✅ (con Coturn) | Secreto compartido backend ↔ Coturn para credenciales TURN de 4 h (≥ 32 caracteres) |
+| `CLOUDFLARE_TURN_KEY_ID` / `CLOUDFLARE_TURN_API_TOKEN` | — | Alternativa sin servidor propio: usa el TURN gestionado de Cloudflare (credenciales de 6 h renovadas cada hora). Si están definidas, sustituyen a Coturn y ya no hacen falta `TURN_SECRET` ni `TURN_URLS` |
 | `STUN_URL` | — | STUN anunciado (por defecto el de Google) |
 | `RATE_LIMIT_API` | — | Peticiones por IP cada 15 min a toda la API (600) |
 | `RATE_LIMIT_AUTH` | — | Intentos de login/registro por IP cada 15 min (20) |

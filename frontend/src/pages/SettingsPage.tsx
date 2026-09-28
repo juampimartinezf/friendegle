@@ -67,7 +67,7 @@ const PRIVACY = [
   ['🔍', 'No existe buscador ni lista pública de usuarios. Nadie puede encontrarte si no te conoció en un chat.'],
   ['🤝', 'Tu perfil solo es visible para amigos aceptados. Eliminar o bloquear a alguien le retira el acceso al instante.'],
   ['🚩', 'Reportar termina el chat y (si ambos tienen cuenta) bloquea al usuario. Varios reportes suspenden el acceso al chat.'],
-  ['📹', 'El vídeo y los mensajes viajan cifrados a través de nuestro servidor de relay: el otro usuario nunca ve tu IP. No se graba ni se guarda nada.'],
+  ['📹', 'El vídeo y los mensajes viajan cifrados a través de un servidor de relay: el otro usuario nunca ve tu IP. No se graba ni se guarda nada.'],
 ];
 
 export default function SettingsPage() {
