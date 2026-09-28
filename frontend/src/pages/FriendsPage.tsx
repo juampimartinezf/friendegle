@@ -4,6 +4,7 @@ import { api, parseDbDate, type Friend, type FriendRequest } from '../services/a
 import { useSocketEvent } from '../hooks/useSocket';
 import UserCard from '../components/UserCard';
 import StreakBadge from '../components/StreakBadge';
+import InviteCard from '../components/InviteCard';
 
 export default function FriendsPage({ onRequestsChanged }: { onRequestsChanged: () => void }) {
   const navigate = useNavigate();
@@ -41,6 +42,7 @@ export default function FriendsPage({ onRequestsChanged }: { onRequestsChanged: 
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 p-6">
+      <InviteCard />
       {requests.length > 0 && (
         <section>
           <h2 className="mb-3 text-lg font-bold">Solicitudes recibidas</h2>

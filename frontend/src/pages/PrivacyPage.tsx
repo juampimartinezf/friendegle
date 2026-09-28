@@ -1,5 +1,8 @@
 import LegalLayout from '../components/LegalLayout';
 import { LEGAL } from '../legal';
+import { analyticsEnabled } from '../services/analytics';
+
+const ANALYTICS = import.meta.env.VITE_PLAUSIBLE_DOMAIN ? 'Plausible' : 'Umami';
 
 export default function PrivacyPage() {
   const mail = (
@@ -23,7 +26,12 @@ export default function PrivacyPage() {
           almacenan en ningún sitio.
         </li>
         <li>Tu dirección IP en la base de datos (ver el punto 3 para la única excepción, cifrada con un hash).</li>
-        <li>Cookies de seguimiento, publicidad ni herramientas de analítica.</li>
+        <li>
+          Cookies de seguimiento ni publicidad.
+          {analyticsEnabled
+            ? ` Para saber cuánta gente usa Friendegle usamos ${ANALYTICS}, una analítica sin cookies que no te identifica: cuenta visitas y algunas acciones (por ejemplo, "chat emparejado" o "invitación copiada") de forma agregada, sin guardar tu IP ni datos personales.`
+            : ' Tampoco herramientas de analítica.'}
+        </li>
       </ul>
 
       <h2>2. Datos que sí tratamos</h2>
@@ -87,13 +95,14 @@ export default function PrivacyPage() {
         <li>El frontend se sirve desde Vercel, que registra datos técnicos de las visitas (como la IP) en sus logs.</li>
         <li>El servidor y la base de datos se alojan en Railway.</li>
         <li>El relay de vídeo y mensajes lo presta Cloudflare: reenvía los paquetes cifrados sin poder leerlos.</li>
+        {analyticsEnabled && <li>Las estadísticas agregadas y anónimas de uso las procesa {ANALYTICS}, sin cookies.</li>}
         <li>Solo comunicaremos datos a autoridades cuando la ley lo exija o ante indicios de delitos graves.</li>
       </ul>
 
       <h2>6. En tu navegador</h2>
       <p>
         Guardamos en el almacenamiento local de tu navegador tu sesión (si tienes cuenta), tu preferencia de tema claro u
-        oscuro y, durante la visita, si entraste como anónimo. Se borran al cerrar sesión o al limpiar los datos del
+        oscuro, si pediste el aviso de la Hora Friendegle y, durante la visita, si entraste como anónimo. Se borran al cerrar sesión o al limpiar los datos del
         navegador.
       </p>
 

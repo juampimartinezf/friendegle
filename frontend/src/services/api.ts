@@ -23,6 +23,8 @@ export interface Me {
   streakCount: number;
   createdAt: string;
   isAdmin: boolean;
+  /** Código del enlace de invitación */
+  referralCode: string | null;
 }
 
 export interface StreakView {
@@ -140,7 +142,7 @@ const post = <T>(path: string, data?: unknown) =>
   request<T>(path, { method: 'POST', body: data ? JSON.stringify(data) : undefined });
 
 export const api = {
-  register: (data: { email: string; password: string; username: string; realName?: string; acceptTerms: true }) =>
+  register: (data: { email: string; password: string; username: string; realName?: string; ref?: string; acceptTerms: true }) =>
     post<{ token: string; user: Me }>('/auth/register', data),
   login: (data: { email: string; password: string }) => post<{ token: string; user: Me }>('/auth/login', data),
   me: () => request<{ user: Me }>('/auth/me'),

@@ -17,6 +17,7 @@ import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import AdminPage from './pages/AdminPage';
 import MessagesPage from './pages/MessagesPage';
+import { useFriendegleHourReminder } from './components/FriendegleHour';
 
 /** Deja pasar a usuarios registrados o en modo anónimo. */
 function RequireSession({ children }: { children: ReactNode }) {
@@ -46,11 +47,10 @@ function PublicOnly({ children }: { children: ReactNode }) {
 type Toast = { text: string; to?: string; avatarUrl?: string | null };
 
 /**
- * Avisos emergentes para usuarios con cuenta. Vive a nivel de toda la app (también en el videochat,
+ * Avisos emergentes (los de amigos y mensajes solo llegan a usuarios con cuenta). Vive a nivel de toda la app (también en el videochat,
  * que es donde suelen hacerse amigos). Si el aviso tiene destino, al pulsarlo se abre.
  */
 function Notifications() {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [toast, setToast] = useState<Toast | null>(null);
@@ -80,8 +80,10 @@ function Notifications() {
       [show, pathname],
     ),
   );
+  // También para anónimos: el aviso de la Hora Friendegle que pidieron
+  useFriendegleHourReminder(useCallback(() => show({ text: '🔥 ¡Es la Hora Friendegle! Entra a chatear', to: '/chat' }, 15000), [show]));
 
-  if (!user || !toast) return null;
+  if (!toast) return null;
   const open = () => {
     setToast(null);
     if (toast.to) navigate(toast.to);

@@ -9,7 +9,7 @@ interface AuthState {
   isAnonymous: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (data: { email: string; password: string; username: string; realName?: string; acceptTerms: true }) => Promise<void>;
+  register: (data: { email: string; password: string; username: string; realName?: string; ref?: string; acceptTerms: true }) => Promise<void>;
   continueAnonymously: () => void;
   logout: () => void;
   setUser: (u: Me) => void;

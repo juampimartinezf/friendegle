@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { banMessage, db, userBan, type UserRow } from '../database/db.js';
+import { banMessage, db, newReferralCode, userBan, type UserRow } from '../database/db.js';
+import { notifyNewFriends } from '../sockets/videoSignaling.js';
 import { rateLimit, requireAuth, signToken, type AuthedRequest } from '../middleware/auth.js';
 import { config } from '../config.js';
 import { randomAvatar } from '../avatar.js';
@@ -17,6 +18,8 @@ const registerSchema = z.object({
     .regex(/^[a-zA-Z0-9_]{3,20}$/, 'Usuario: 3-20 caracteres, solo letras, números y _'),
   realName: z.string().trim().max(60).optional(),
   // Confirmación de mayoría de edad (18+) y aceptación de Términos y Política de Privacidad
+  // Código del enlace de invitación de un amigo (opcional)
+  ref: z.string().trim().max(20).optional(),
   acceptTerms: z.literal(true, { message: 'Debes confirmar que tienes 18 años o más y aceptar los términos' }),
 });
 
@@ -41,6 +44,7 @@ export function selfView(u: UserRow) {
     streakCount: u.streak_count,
     createdAt: u.created_at,
     isAdmin: isAdmin(u.email),
+    referralCode: u.referral_code,
   };
 }
 
@@ -49,16 +53,25 @@ const authLimiter = rateLimit(config.rateLimit.authPer15Min, 15 * 60 * 1000);
 authRouter.post('/register', authLimiter, async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
-  const { email, password, username, realName } = parsed.data;
+  const { email, password, username, realName, ref } = parsed.data;
+  const inviter = ref
+    ? (db.prepare('SELECT id FROM users WHERE referral_code = ?').get(ref.toLowerCase()) as { id: number } | undefined)
+    : undefined;
 
   const hash = await bcrypt.hash(password, 12);
   try {
     const info = db
       .prepare(
-        'INSERT INTO users (email, password_hash, username, real_name, avatar_url, terms_accepted_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
+        `INSERT INTO users (email, password_hash, username, real_name, avatar_url, referral_code, referred_by, terms_accepted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
       )
-      .run(email, hash, username, realName || null, randomAvatar());
+      .run(email, hash, username, realName || null, randomAvatar(), newReferralCode(), inviter?.id ?? null);
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid) as UserRow;
+    // Quien se registra con el enlace de un amigo y el que lo invitó quedan como amigos (los dos lo eligieron)
+    if (inviter) {
+      db.prepare(`INSERT INTO friends (user1_id, user2_id, status) VALUES (?, ?, 'accepted')`).run(inviter.id, user.id);
+      notifyNewFriends(inviter.id, user.id);
+    }
     res.status(201).json({ token: signToken(user.id), user: selfView(user) });
   } catch (err: any) {
     if (err?.code === 'SQLITE_CONSTRAINT_UNIQUE') {

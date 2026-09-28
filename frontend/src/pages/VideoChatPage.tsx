@@ -13,6 +13,9 @@ import { anonymousAvatar, randomSeed } from '../avatar';
 import { useSocket, useSocketEvent } from '../hooks/useSocket';
 import { loadNsfwModel, watchStream } from '../moderation/nsfw';
 import { parseDbDate } from '../services/api';
+import { usePresence } from '../hooks/usePresence';
+import FriendegleHour from '../components/FriendegleHour';
+import { track } from '../services/analytics';
 
 type Sanction = { action: 'warning' | 'ban_24h' | 'ban_permanent'; until: string | null };
 
@@ -45,6 +48,13 @@ export default function VideoChatPage() {
   const chat = useWebRTC({ demo, avatarUrl: myAvatar });
   const [reportOpen, setReportOpen] = useState(false);
   const socket = useSocket();
+  const online = usePresence();
+  useEffect(() => {
+    if (chat.match && !demo) track('Chat emparejado');
+  }, [chat.match, demo]);
+  useEffect(() => {
+    if (chat.friendState === 'accepted') track('Amistad en videochat');
+  }, [chat.friendState]);
 
   // ---- Moderación automática: se analiza en este navegador el vídeo que RECIBO (nunca se guarda ni se envía) ----
   const [hiddenByModeration, setHiddenByModeration] = useState(false);
@@ -92,6 +102,7 @@ export default function VideoChatPage() {
     );
 
   const banners = [
+    !demo && !chat.match && online === null && chat.status === 'searching' && <FriendegleHour key="hour" compact />,
     chat.notice && <Banner key="notice" tone="info">{chat.notice}</Banner>,
     chat.usingFakeCamera && (
       <Banner key="cam" tone="warn">

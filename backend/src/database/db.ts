@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { config } from '../config.js';
 
 export const db = new Database(config.dbPath);
@@ -22,7 +23,23 @@ ensureColumn('ip_bans', 'expires_at', 'TIMESTAMP'); // NULL = permanente
 ensureColumn('friends', 'last_streak_day', 'TEXT'); // último día (YYYY-MM-DD) que contó para la racha
 ensureColumn('friends', 'streak_broken_at', 'TEXT'); // día en que se rompió (NULL si está activa)
 ensureColumn('friends', 'recovery_attempts', 'INTEGER DEFAULT 0'); // días fallados desde que se rompió (0-3)
+ensureColumn('users', 'referral_code', 'TEXT'); // código del enlace de invitación
+ensureColumn('users', 'referred_by', 'INTEGER'); // quién lo invitó (si se registró con su enlace)
 db.exec('CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status, created_at)');
+db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_referral_code ON users(referral_code)');
+
+/** Código de invitación aleatorio (sin caracteres ambiguos). */
+export function newReferralCode(): string {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  for (;;) {
+    const code = Array.from(randomBytes(8), (b) => chars[b % chars.length]).join('');
+    if (!db.prepare('SELECT 1 FROM users WHERE referral_code = ?').get(code)) return code;
+  }
+}
+// Cuentas anteriores a las invitaciones
+for (const { id } of db.prepare('SELECT id FROM users WHERE referral_code IS NULL').all() as { id: number }[]) {
+  db.prepare('UPDATE users SET referral_code = ? WHERE id = ?').run(newReferralCode(), id);
+}
 
 // Nadie está en línea al arrancar el servidor
 db.prepare('UPDATE users SET is_online = FALSE').run();
@@ -42,6 +59,7 @@ export interface UserRow {
   last_chat_date: string | null;
   terms_accepted_at: string | null;
   banned_at: string | null;
+  referral_code: string | null;
   created_at: string;
 }
 

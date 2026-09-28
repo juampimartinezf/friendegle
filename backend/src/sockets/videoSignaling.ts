@@ -398,6 +398,24 @@ function clientIp(socket: Socket): string {
   return socket.handshake.address;
 }
 
+/**
+ * Personas conectadas ahora (pestañas abiertas). Solo se publica el número si hay al menos
+ * MIN_ONLINE_TO_SHOW: con menos, la web anuncia la "Hora Friendegle" en lugar de un contador desanimante.
+ */
+export const MIN_ONLINE_TO_SHOW = 10;
+const presence = () => {
+  const n = io.of('/').sockets.size;
+  return { online: n >= MIN_ONLINE_TO_SHOW ? n : null };
+};
+let presenceTimer: NodeJS.Timeout | null = null;
+function broadcastPresence() {
+  // Como mucho una difusión cada 2 s aunque entren y salgan muchos a la vez
+  presenceTimer ??= setTimeout(() => {
+    presenceTimer = null;
+    io.emit('presence', presence());
+  }, 2000);
+}
+
 export function setupVideoSignaling(server: Server) {
   io = server;
   if (config.turn.cloudflareKeyId) {
@@ -430,6 +448,10 @@ export function setupVideoSignaling(server: Server) {
       setOnline(userId, true);
     }
 
+    socket.emit('presence', presence());
+    broadcastPresence();
+    socket.on('presence:get', () => socket.emit('presence', presence()));
+
     socket.on('queue:join', () => {
       if (isSuspended(data)) return socket.emit('queue:suspended');
       endMatch(socket.id, 'partner_left');
@@ -457,6 +479,7 @@ export function setupVideoSignaling(server: Server) {
     socket.on('moderation:auto-detect', (p) => handleAutoDetect(socket, p));
 
     socket.on('disconnect', () => {
+      broadcastPresence();
       removeFromQueue(socket.id);
       endMatch(socket.id, 'partner_disconnected');
       if (userId) {

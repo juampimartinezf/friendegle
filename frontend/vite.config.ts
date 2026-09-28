@@ -5,15 +5,36 @@ import tailwindcss from '@tailwindcss/vite';
 const backend = 'http://localhost:4000';
 
 /**
- * Content-Security-Policy solo en el build de producción (en dev rompería el HMR de Vite).
- * Solo permite conectar con el propio sitio y con el backend (HTTPS + WSS).
+ * Analítica sin cookies, opcional. Plausible: VITE_PLAUSIBLE_DOMAIN (+ VITE_PLAUSIBLE_SRC si es autoalojado).
+ * Umami: VITE_UMAMI_WEBSITE_ID (+ VITE_UMAMI_SRC si es autoalojado). Solo en el build de producción.
  */
-function contentSecurityPolicy(apiUrl: string): Plugin {
+function analytics(env: Record<string, string>): { tag: string; scriptOrigin: string; connect: string[] } | null {
+  const escape = (v: string) => v.replace(/[^\w.:/@-]/g, '');
+  if (env.VITE_PLAUSIBLE_DOMAIN) {
+    const src = env.VITE_PLAUSIBLE_SRC || 'https://plausible.io/js/script.js';
+    const origin = new URL(src).origin;
+    return { tag: `<script defer data-domain="${escape(env.VITE_PLAUSIBLE_DOMAIN)}" src="${escape(src)}"></script>`, scriptOrigin: origin, connect: [origin] };
+  }
+  if (env.VITE_UMAMI_WEBSITE_ID) {
+    const src = env.VITE_UMAMI_SRC || 'https://cloud.umami.is/script.js';
+    const origin = new URL(src).origin;
+    // Umami Cloud sirve el script desde cloud.umami.is pero envía los eventos a gateway.umami.is
+    const connect = origin === 'https://cloud.umami.is' ? [origin, 'https://gateway.umami.is'] : [origin];
+    return { tag: `<script defer data-website-id="${escape(env.VITE_UMAMI_WEBSITE_ID)}" src="${escape(src)}"></script>`, scriptOrigin: origin, connect };
+  }
+  return null;
+}
+
+/**
+ * Content-Security-Policy solo en el build de producción (en dev rompería el HMR de Vite).
+ * Solo permite conectar con el propio sitio, con el backend (HTTPS + WSS) y, si está configurada, con la analítica.
+ */
+function contentSecurityPolicy(apiUrl: string, stats: ReturnType<typeof analytics>): Plugin {
   const api = apiUrl ? new URL(apiUrl) : null;
-  const connect = api ? `'self' ${api.origin} wss://${api.host}` : `'self'`;
+  const connect = [`'self'`, ...(api ? [api.origin, `wss://${api.host}`] : []), ...(stats?.connect ?? [])].join(' ');
   const csp = [
     `default-src 'self'`,
-    `script-src 'self'`,
+    `script-src 'self'${stats ? ` ${stats.scriptOrigin}` : ''}`,
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data:`,
     `media-src 'self' blob: mediastream:`,
@@ -26,7 +47,9 @@ function contentSecurityPolicy(apiUrl: string): Plugin {
     name: 'friendegle-csp',
     apply: 'build',
     transformIndexHtml: (html) =>
-      html.replace('<head>', `<head>\n    <meta http-equiv="Content-Security-Policy" content="${csp}" />`),
+      html
+        .replace('<head>', `<head>\n    <meta http-equiv="Content-Security-Policy" content="${csp}" />`)
+        .replace('</head>', stats ? `  ${stats.tag}\n  </head>` : '</head>'),
   };
 }
 
@@ -49,7 +72,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [react(), tailwindcss(), contentSecurityPolicy(apiUrl)],
+    plugins: [react(), tailwindcss(), contentSecurityPolicy(apiUrl, analytics(env))],
     build: {
       target: 'es2022',
       sourcemap: false,

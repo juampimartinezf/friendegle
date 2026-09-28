@@ -1,8 +1,12 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { usePresence } from '../hooks/usePresence';
+import FriendegleHour from '../components/FriendegleHour';
+import InviteCard from '../components/InviteCard';
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const online = usePresence();
 
   return (
     <div className="flex min-h-full flex-col items-center justify-center gap-10 p-6 text-center">
@@ -11,7 +15,13 @@ export default function DashboardPage() {
           {user ? `Hola, ${user.realName || user.username} 👋` : 'Hola, desconocido 👋'}
         </h1>
         <p className="mt-2 text-ink-soft">Conecta con alguien al azar. Nadie sabrá quién eres a menos que se hagan amigos.</p>
+        {online && (
+          <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200">
+            <span className="size-2 animate-pulse rounded-full bg-emerald-500" /> {online.toLocaleString()} conectados ahora
+          </p>
+        )}
       </div>
+      {online === null && <FriendegleHour />}
 
       <Link
         to="/chat"
@@ -24,6 +34,8 @@ export default function DashboardPage() {
           INICIAR CHAT
         </span>
       </Link>
+
+      <InviteCard />
 
       <div className="flex flex-col items-center gap-3">
         <Link to="/chat?demo=1" className="text-sm text-ink-soft underline-offset-4 hover:text-ink hover:underline">
