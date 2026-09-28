@@ -18,7 +18,7 @@ export default function PrivacyPage() {
       <h2>1. Lo que nunca guardamos</h2>
       <ul>
         <li>
-          <b>El vídeo, el audio y los mensajes de texto de los chats.</b> Viajan cifrados entre los dos navegadores a
+          <b>El vídeo, el audio y los mensajes de texto del videochat.</b> Viajan cifrados entre los dos navegadores a
           través de un servidor de relay (Cloudflare), que solo reenvía los paquetes y no puede leerlos. No se graban ni se
           almacenan en ningún sitio.
         </li>
@@ -46,6 +46,11 @@ export default function PrivacyPage() {
         <li>
           <b>Historial de chats entre usuarios registrados</b>: quiénes participaron, cuánto duró y si eran amigos. Nunca
           su contenido.
+        </li>
+        <li>
+          <b>Mensajes privados entre amigos</b> (sección Mensajes): el texto, quién lo envía, cuándo y si se ha leído. Se
+          guardan en nuestra base de datos para mostrarte el historial; no tienen cifrado de extremo a extremo. Solo
+          pueden leerlos los dos participantes mientras sean amigos.
         </li>
         <li>
           <b>Reportes</b>: motivo, nombre anónimo usado en el chat, la cuenta reportada y la que reporta o, si eran
@@ -89,8 +94,8 @@ export default function PrivacyPage() {
       <ul>
         <li>Tu cuenta y tu perfil, hasta que la elimines.</li>
         <li>
-          Al eliminar la cuenta (Configuración → Eliminar cuenta) se borran tu perfil, amistades, bloqueos e historial de
-          chats. Los reportes se conservan desvinculados de tu cuenta, por seguridad.
+          Al eliminar la cuenta (Configuración → Eliminar cuenta) se borran tu perfil, amistades, bloqueos, historial de
+          chats y todos los mensajes privados que enviaste o recibiste. Los reportes se conservan desvinculados de tu cuenta, por seguridad.
         </li>
         <li>Las copias de seguridad se conservan un máximo de 14 días.</li>
       </ul>

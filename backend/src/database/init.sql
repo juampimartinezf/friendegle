@@ -83,3 +83,17 @@ CREATE TABLE IF NOT EXISTS ip_bans (
 
 -- Columnas añadidas después de la primera versión (moderación y aceptación de términos)
 -- se crean en db.ts con ensureColumn(), para que también se apliquen a bases de datos existentes.
+
+-- Mensajes privados entre amigos (texto). Se borran si se elimina la cuenta de cualquiera de los dos.
+CREATE TABLE IF NOT EXISTS direct_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  sender_id INTEGER NOT NULL,
+  recipient_id INTEGER NOT NULL,
+  body TEXT NOT NULL,
+  read_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(sender_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY(recipient_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_dm_pair ON direct_messages(sender_id, recipient_id, id);
+CREATE INDEX IF NOT EXISTS idx_dm_unread ON direct_messages(recipient_id, read_at);

@@ -462,7 +462,11 @@ Plantilla: [`frontend/.env.production.example`](frontend/.env.production.example
 | DELETE | `/api/friends/:id` | Eliminar amistad |
 | POST | `/api/reports` | Reportar a un amigo |
 | DELETE | `/api/users/me` | Eliminar la propia cuenta (`{ password }`) |
+| GET | `/api/messages/conversations` | Mensajes privados: una conversación por amigo, con último mensaje y no leídos |
+| GET | `/api/messages/:friendId` | Historial de la conversación (últimos 200) |
+| POST | `/api/messages/:friendId` | Enviar mensaje (`{ body }`, máx. 1000 caracteres; solo a amigos no bloqueados) |
+| POST | `/api/messages/:friendId/read` | Marcar como leídos |
 | GET | `/api/admin/reports?status=open` | Moderación: listar reportes (`open`, `actioned` o `dismissed`; solo `ADMIN_EMAILS`) |
 | POST | `/api/admin/reports/:id/dismiss` · `/ban` | Moderación: descartar o suspender |
 
-**Socket.io**. Cliente → servidor: `queue:join`, `queue:leave`, `signal`, `chat:leave`, `chat:add-friend`, `chat:report {reason}`, `chat:block`. Servidor → cliente: `queue:waiting`, `queue:suspended`, `chat:matched`, `signal`, `chat:ended`, `friend:status`, `friend:incoming`, `friend:request`, `friend:accepted`, `friends:changed`, `report:ok`, `block:ok`.
+**Socket.io**. Cliente → servidor: `queue:join`, `queue:leave`, `signal`, `chat:leave`, `chat:add-friend`, `chat:report {reason}`, `chat:block`. Servidor → cliente: `queue:waiting`, `queue:suspended`, `chat:matched`, `signal`, `chat:ended`, `friend:status`, `friend:incoming`, `friend:request`, `friend:accepted`, `friends:changed`, `dm:new`, `dm:read`, `report:ok`, `block:ok`.

@@ -72,12 +72,12 @@ export default function VideoChatPage() {
 
   return (
     <div className="flex h-dvh flex-col bg-celeste-100 md:flex-row">
-      {/* IZQUIERDA (50%): desconocido arriba, tú abajo */}
-      <section className="flex h-[55dvh] shrink-0 flex-col gap-2 p-2 md:h-auto md:w-1/2 md:p-3">
+      {/* IZQUIERDA (50%): dos cámaras del mismo tamaño. Móvil: lado a lado; escritorio: arriba/abajo */}
+      <section className="grid h-[40dvh] shrink-0 grid-cols-2 gap-2 p-2 md:h-auto md:w-1/2 md:grid-cols-1 md:grid-rows-2 md:p-3">
         <VideoWindow
           stream={chat.remoteStream}
           label={chat.match ? `${chat.match.partnerLabel}${demo ? ' · demo' : ''}` : undefined}
-          className="min-h-0 flex-[7] rounded-2xl shadow-md"
+          className="min-h-0 rounded-2xl shadow-md"
           placeholder={placeholder}
         />
         <VideoWindow
@@ -85,7 +85,7 @@ export default function VideoChatPage() {
           muted
           mirrored={!chat.usingFakeCamera}
           label={chat.match ? `Tú · ${chat.match.myLabel}` : 'Tú'}
-          className="min-h-0 flex-[3] rounded-2xl shadow-md"
+          className="min-h-0 rounded-2xl shadow-md"
         />
       </section>
 

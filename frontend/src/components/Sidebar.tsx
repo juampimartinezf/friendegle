@@ -6,10 +6,20 @@ const ITEMS = [
   { to: '/', label: 'Inicio', icon: '🏠', needsAccount: false },
   { to: '/profile', label: 'Mi Perfil', icon: '🙂', needsAccount: true },
   { to: '/friends', label: 'Mis Amigos', icon: '🤝', needsAccount: true },
+  { to: '/messages', label: 'Mensajes', icon: '💬', needsAccount: true },
   { to: '/settings', label: 'Configuración', icon: '⚙️', needsAccount: false },
 ];
 
-export default function Sidebar({ requestCount, onNavigate }: { requestCount: number; onNavigate?: () => void }) {
+export default function Sidebar({
+  requestCount,
+  unreadMessages,
+  onNavigate,
+}: {
+  requestCount: number;
+  unreadMessages: number;
+  onNavigate?: () => void;
+}) {
+  const badges: Record<string, number> = { '/friends': requestCount, '/messages': unreadMessages };
   const { user } = useAuth();
   const items = user?.isAdmin ? [...ITEMS, { to: '/admin', label: 'Moderación', icon: '🛡️', needsAccount: true }] : ITEMS;
 
@@ -51,8 +61,8 @@ export default function Sidebar({ requestCount, onNavigate }: { requestCount: nu
               >
                 <span>{item.icon}</span>
                 {item.label}
-                {item.to === '/friends' && requestCount > 0 && (
-                  <span className="ml-auto rounded-full bg-brand-600 px-2 text-xs font-bold text-white">{requestCount}</span>
+                {badges[item.to] > 0 && (
+                  <span className="ml-auto rounded-full bg-brand-600 px-2 text-xs font-bold text-white">{badges[item.to]}</span>
                 )}
               </NavLink>
             </li>

@@ -60,6 +60,31 @@ export interface AdminReport {
   totalReports: number;
 }
 
+export interface DirectMessage {
+  id: number;
+  senderId: number;
+  recipientId: number;
+  body: string;
+  readAt: string | null;
+  createdAt: string;
+  /** Solo en la notificación que recibe el destinatario */
+  senderName?: string;
+}
+
+export interface Conversation {
+  friendId: number;
+  username: string;
+  realName: string | null;
+  avatarUrl: string | null;
+  isOnline: number;
+  lastBody: string | null;
+  lastSenderId: number | null;
+  lastAt: string | null;
+  unread: number;
+}
+
+export const MAX_DM_LENGTH = 1000;
+
 export interface FriendRequest {
   id: number;
   label: string;
@@ -111,6 +136,11 @@ export const api = {
 
   reportFriend: (userId: number, reason: string, details?: string) =>
     post<{ ok: true }>('/reports', { userId, reason, details }),
+
+  conversations: () => request<{ conversations: Conversation[] }>('/messages/conversations'),
+  directMessages: (friendId: number) => request<{ messages: DirectMessage[] }>(`/messages/${friendId}`),
+  sendDirectMessage: (friendId: number, body: string) => post<{ message: DirectMessage }>(`/messages/${friendId}`, { body }),
+  markConversationRead: (friendId: number) => post<{ ok: true }>(`/messages/${friendId}/read`),
 
   adminReports: (status: AdminReport['status']) => request<{ reports: AdminReport[] }>(`/admin/reports?status=${status}`),
   adminDismiss: (id: number) => post<{ ok: true }>(`/admin/reports/${id}/dismiss`),

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { useSocketEvent } from './hooks/useSocket';
-import { api } from './services/api';
+import { api, type DirectMessage } from './services/api';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import LoginPage from './pages/LoginPage';
@@ -15,6 +15,7 @@ import SettingsPage from './pages/SettingsPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import AdminPage from './pages/AdminPage';
+import MessagesPage from './pages/MessagesPage';
 
 /** Deja pasar a usuarios registrados o en modo anónimo. */
 function RequireSession({ children }: { children: ReactNode }) {
@@ -43,6 +44,7 @@ function PublicOnly({ children }: { children: ReactNode }) {
 
 function Notifications({ onChange }: { onChange: () => void }) {
   const [toast, setToast] = useState<string | null>(null);
+  const { pathname } = useLocation();
   const show = useCallback(
     (text: string) => {
       setToast(text);
@@ -53,6 +55,17 @@ function Notifications({ onChange }: { onChange: () => void }) {
   );
   useSocketEvent('friend:request', useCallback(() => show('🤝 Tienes una nueva solicitud de amistad'), [show]));
   useSocketEvent('friend:accepted', useCallback(() => show('🎉 Aceptaron tu solicitud de amistad'), [show]));
+  useSocketEvent<DirectMessage>(
+    'dm:new',
+    useCallback(
+      (m) => {
+        // senderName solo viene en el aviso al destinatario; no avisar si ya tiene esa conversación abierta
+        if (!m.senderName || pathname === `/messages/${m.senderId}`) return;
+        show(`💬 ${m.senderName}: ${m.body.length > 60 ? m.body.slice(0, 60) + '…' : m.body}`);
+      },
+      [show, pathname],
+    ),
+  );
   if (!toast) return null;
   return (
     <div className="fixed bottom-6 right-6 z-50 rounded-xl bg-brand-600 px-4 py-3 font-medium text-white shadow-xl shadow-brand-800/20">{toast}</div>
@@ -63,11 +76,23 @@ function AppLayout() {
   const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [requestCount, setRequestCount] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   const refreshRequests = useCallback(() => {
     if (user) api.friendRequests().then((r) => setRequestCount(r.incoming.length)).catch(() => {});
   }, [user]);
   useEffect(refreshRequests, [refreshRequests]);
+
+  const refreshUnread = useCallback(() => {
+    if (user)
+      api
+        .conversations()
+        .then((r) => setUnreadMessages(r.conversations.reduce((n, c) => n + c.unread, 0)))
+        .catch(() => {});
+  }, [user]);
+  useEffect(refreshUnread, [refreshUnread]);
+  useSocketEvent('dm:new', refreshUnread);
+  useSocketEvent('dm:read', refreshUnread);
 
   return (
     <div className="flex h-full flex-col">
@@ -78,7 +103,7 @@ function AppLayout() {
             menuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <Sidebar requestCount={requestCount} onNavigate={() => setMenuOpen(false)} />
+          <Sidebar requestCount={requestCount} unreadMessages={unreadMessages} onNavigate={() => setMenuOpen(false)} />
         </div>
         <main className="min-w-0 flex-1 overflow-y-auto">
           <RoutesWithRefresh refresh={refreshRequests} />
@@ -98,6 +123,8 @@ function RoutesWithRefresh({ refresh }: { refresh: () => void }) {
       <Route path="profile" element={<RequireAccount><ProfilePage /></RequireAccount>} />
       <Route path="friends" element={<RequireAccount><FriendsPage onRequestsChanged={refresh} /></RequireAccount>} />
       <Route path="friends/:id" element={<RequireAccount><ProfilePage /></RequireAccount>} />
+      <Route path="messages" element={<RequireAccount><MessagesPage /></RequireAccount>} />
+      <Route path="messages/:friendId" element={<RequireAccount><MessagesPage /></RequireAccount>} />
       <Route path="admin" element={<RequireAdmin><AdminPage /></RequireAdmin>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

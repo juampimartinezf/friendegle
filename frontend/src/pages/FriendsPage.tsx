@@ -89,9 +89,17 @@ export default function FriendsPage({ onRequestsChanged }: { onRequestsChanged: 
                 lastSeen={f.lastSeen}
                 onClick={() => navigate(`/friends/${f.id}`)}
                 actions={
+                  <>
+                  <button
+                    onClick={() => navigate(`/messages/${f.id}`)}
+                    className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+                  >
+                    💬 Mensaje
+                  </button>
                   <button onClick={() => remove(f)} className="rounded-lg px-2 py-1 text-xs text-ink-soft hover:bg-celeste-100 hover:text-rose-600">
                     Eliminar
                   </button>
+                  </>
                 }
               />
             ))}
