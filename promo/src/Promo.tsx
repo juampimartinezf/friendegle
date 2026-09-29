@@ -655,8 +655,8 @@ function CtaScene() {
           Todos los días 22 a 23 hs · Solo +18 · Bases y condiciones en la bio
         </div>
       </AbsoluteFill>
-      <Sfx at={0} src="whoosh" />
-      <Sfx at={10} src="pop" />
+      <Sfx at={0} src="whoosh" volume={0.5} />
+      <Sfx at={10} src="pop" volume={0.45} />
     </AbsoluteFill>
   );
 }
