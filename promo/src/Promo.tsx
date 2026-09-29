@@ -29,7 +29,7 @@ const money = (n: number) => `$${Math.round(n).toLocaleString('es-AR')}`;
 const scene = (id: string) => timeline.scenes.find((s) => s.id === id)!;
 
 // Fotograma (dentro de la escena del reloj) en que la voz empieza a decir "¡Todos los días…!"
-const DAILY_AT = 155;
+const DAILY_AT = 123;
 
 // Subtítulos de lo que dice la voz (muchos ven TikTok sin sonido): [texto, fotograma de la escena en que aparece]
 const CAPTIONS: Record<string, [string, number][]> = {
