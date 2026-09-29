@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "audio": "node scripts/music.mjs && powershell -ExecutionPolicy Bypass -File scripts/tts.ps1 && node scripts/timeline.mjs",
+    "audio": "node scripts/music.mjs && python scripts/tts.py && node scripts/timeline.mjs",
     "studio": "remotion studio src/index.ts",
     "render": "remotion render src/index.ts ConcursoTikTok out/friendegle-concurso.mp4 --codec h264 --crf 18"
   },

@@ -7,3 +7,4 @@ deploy/backups/
 
 # Renders del video promocional
 promo/out/
+promo/voices/

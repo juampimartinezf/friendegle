@@ -19,11 +19,12 @@ const wavSeconds = (file) => {
 
 // escena → [frase, fotogramas mínimos, fotograma en que empieza la voz]
 const plan = [
-  ['hook', 'v1', 150, 12],
+  ['hook', 'v1', 135, 12],
   ['clock', 'v2', 165, 8],
-  ['sign', 'v3', 210, 20],
-  ['phone', 'v4', 180, 8],
-  ['winner', 'v5', 195, 14],
+  ['sign', 'v3', 195, 20],
+  ['phone', 'v4', 170, 8],
+  ['winner', 'v5', 120, 14],
+  ['cta', 'v6', 120, 6],
 ];
 
 let from = 0;

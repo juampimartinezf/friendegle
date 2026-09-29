@@ -28,13 +28,20 @@ const money = (n: number) => `$${Math.round(n).toLocaleString('es-AR')}`;
 
 const scene = (id: string) => timeline.scenes.find((s) => s.id === id)!;
 
-// Subtítulos de lo que dice la voz (muchos ven TikTok sin sonido)
-const CAPTIONS: Record<string, string> = {
-  hook: '¿Quieres ganar 20 mil pesos? 🤑',
-  clock: 'Entra a Friendegle entre las 22 y 23 hs',
-  sign: 'Busca al usuario con el cartel 🪧',
-  phone: 'Ingresa el código único…',
-  winner: '¡Y gana el premio! 🏆',
+// Fotograma (dentro de la escena del reloj) en que la voz empieza a decir "¡Todos los días…!"
+const DAILY_AT = 155;
+
+// Subtítulos de lo que dice la voz (muchos ven TikTok sin sonido): [texto, fotograma de la escena en que aparece]
+const CAPTIONS: Record<string, [string, number][]> = {
+  hook: [['¿Quieres ganar 20 mil pesos? 🤑', 0]],
+  clock: [
+    ['Entra a Friendegle entre las 22 y 23 hs', 0],
+    ['¡Todos los días a esa hora hay un concurso nuevo! 🎁', DAILY_AT],
+  ],
+  sign: [['Busca al usuario con el cartel 🪧', 0]],
+  phone: [['Ingresa el código único…', 0]],
+  winner: [['¡Y gana el premio! 🏆', 0]],
+  cta: [['Entra con el link en la bio o en los comentarios 🔗', 0]],
 };
 
 // ------------------------------------------------------------------ piezas comunes
@@ -190,7 +197,7 @@ function ClockScene() {
   const minutes = interpolate(frame, [0, 40, 130], [21 * 60 + 30, 22 * 60, 23 * 60], { extrapolateRight: 'clamp', easing: (t) => t * (2 - t) });
   const hourAngle = ((minutes / 60) % 12) * 30;
   const minuteAngle = (minutes % 60) * 6;
-  const R = 330;
+  const R = 270;
   // arco resaltado de 22 a 23 (en la esfera: de las 10 a las 11)
   const arc = (a0: number, a1: number, r: number) => {
     const p = (a: number) => [R + r * Math.sin((a * Math.PI) / 180), R - r * Math.cos((a * Math.PI) / 180)];
@@ -200,7 +207,7 @@ function ClockScene() {
   const arcEnd = interpolate(frame, [40, 130], [300, 330], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
   const hh = Math.floor(minutes / 60), mm = Math.floor(minutes % 60);
   return (
-    <AbsoluteFill style={{ ...center, gap: 40, paddingBottom: 560 }}>
+    <AbsoluteFill style={{ ...center, gap: 34, paddingBottom: 470 }}>
       <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 80, color: C.white, transform: `scale(${inAnim})` }}>⏰ Hora Friendegle</div>
       <svg width={R * 2} height={R * 2} style={{ transform: `scale(${inAnim}) rotate(${(1 - inAnim) * -30}deg)`, filter: 'drop-shadow(0 30px 50px rgba(0,0,0,0.4))' }}>
         <circle cx={R} cy={R} r={R - 6} fill={C.white} stroke={C.celeste} strokeWidth={12} />
@@ -208,17 +215,17 @@ function ClockScene() {
         {Array.from({ length: 12 }, (_, i) => {
           const a = (i * 30 * Math.PI) / 180;
           return (
-            <text key={i} x={R + (R - 70) * Math.sin(a)} y={R - (R - 70) * Math.cos(a) + 20} textAnchor="middle" fontFamily={FONT} fontWeight={800} fontSize={54} fill={C.navy}>
+            <text key={i} x={R + (R - 60) * Math.sin(a)} y={R - (R - 60) * Math.cos(a) + 17} textAnchor="middle" fontFamily={FONT} fontWeight={800} fontSize={46} fill={C.navy}>
               {i === 0 ? 12 : i}
             </text>
           );
         })}
-        <line x1={R} y1={R} x2={R + 170 * Math.sin((hourAngle * Math.PI) / 180)} y2={R - 170 * Math.cos((hourAngle * Math.PI) / 180)} stroke={C.navy} strokeWidth={22} strokeLinecap="round" />
-        <line x1={R} y1={R} x2={R + 250 * Math.sin((minuteAngle * Math.PI) / 180)} y2={R - 250 * Math.cos((minuteAngle * Math.PI) / 180)} stroke={C.brand} strokeWidth={12} strokeLinecap="round" />
+        <line x1={R} y1={R} x2={R + 140 * Math.sin((hourAngle * Math.PI) / 180)} y2={R - 140 * Math.cos((hourAngle * Math.PI) / 180)} stroke={C.navy} strokeWidth={20} strokeLinecap="round" />
+        <line x1={R} y1={R} x2={R + 205 * Math.sin((minuteAngle * Math.PI) / 180)} y2={R - 205 * Math.cos((minuteAngle * Math.PI) / 180)} stroke={C.brand} strokeWidth={11} strokeLinecap="round" />
         <circle cx={R} cy={R} r={20} fill={C.orange} />
       </svg>
       <div style={{ display: 'flex', gap: 24, alignItems: 'center', fontFamily: FONT, fontWeight: 900 }}>
-        <div style={{ fontSize: 110, color: C.white, fontVariantNumeric: 'tabular-nums' }}>
+        <div style={{ fontSize: 96, color: C.white, fontVariantNumeric: 'tabular-nums' }}>
           {String(hh).padStart(2, '0')}:{String(mm).padStart(2, '0')}
         </div>
       </div>
@@ -236,11 +243,48 @@ function ClockScene() {
       >
         🔥 22:00 a 23:00 hs 🔥
       </div>
+      <DailyBanner frame={frame - DAILY_AT} />
       {[0, 10, 20, 30, 40].map((f) => (
         <Sfx key={f} at={f} src="tick" volume={0.5} />
       ))}
       <Sfx at={45} src="pop" />
+      <Sfx at={DAILY_AT} src="ding" volume={0.6} />
     </AbsoluteFill>
+  );
+}
+
+/** "Nuevo concurso TODOS LOS DÍAS", con un calendario que pasa de día. */
+function DailyBanner({ frame }: { frame: number }) {
+  const { fps } = useVideoConfig();
+  if (frame < 0) return <div style={{ height: 116 }} />;
+  const s = spring({ frame, fps, config: { damping: 10 } });
+  const day = 1 + Math.min(6, Math.floor(frame / 9)); // el calendario avanza: un concurso cada día
+  return (
+    <div
+      style={{
+        height: 116,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 22,
+        padding: '0 34px',
+        borderRadius: 30,
+        background: C.white,
+        boxShadow: '0 16px 40px rgba(0,0,0,0.3)',
+        transform: `scale(${s}) rotate(${(1 - s) * 6}deg)`,
+        fontFamily: FONT,
+        fontWeight: 900,
+      }}
+    >
+      <div style={{ width: 84, height: 88, borderRadius: 16, overflow: 'hidden', border: `4px solid ${C.navy}`, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ background: C.orange, height: 24 }} />
+        <div style={{ flex: 1, display: 'grid', placeItems: 'center', fontSize: 44, color: C.navy }}>{day}</div>
+      </div>
+      <div style={{ fontSize: 46, color: C.navy, lineHeight: 1.05 }}>
+        🎁 ¡Nuevo concurso
+        <br />
+        <span style={{ color: C.orange }}>TODOS LOS DÍAS!</span>
+      </div>
+    </div>
   );
 }
 
@@ -539,7 +583,6 @@ function WinnerScene() {
   const { fps } = useVideoConfig();
   const big = spring({ frame, fps, config: { damping: 8, stiffness: 120 } });
   const prize = spring({ frame: frame - 18, fps, config: { damping: 12 } });
-  const cta = spring({ frame: frame - 60, fps, config: { damping: 14 } });
   return (
     <AbsoluteFill>
       <AbsoluteFill style={{ background: `radial-gradient(circle at 50% 45%, rgba(255,200,61,${0.35 * big}) 0%, transparent 60%)` }} />
@@ -565,15 +608,55 @@ function WinnerScene() {
         <div style={{ fontFamily: FONT, fontWeight: 900, fontSize: 130, color: C.white, transform: `scale(${prize})`, textShadow: '0 10px 30px rgba(0,0,0,0.4)' }}>
           {money(PRIZE)}
         </div>
-        <div style={{ transform: `scale(${cta})`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 22 }}>
-          <Logo scale={0.8} />
-          <div style={{ fontFamily: FONT, fontWeight: 800, fontSize: 50, color: C.navy, background: C.white, padding: '14px 36px', borderRadius: 999 }}>{SITE}</div>
-          <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 30, color: C.celeste }}>Solo +18 · Bases y condiciones en la bio</div>
-        </div>
       </AbsoluteFill>
       <Confetti />
       <Sfx at={0} src="win" volume={0.9} />
       <Sfx at={18} src="cash" volume={0.7} />
+    </AbsoluteFill>
+  );
+}
+
+// ------------------------------------------------------------------ escena 6: link en la bio / comentarios
+
+function CtaScene() {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const logo = spring({ frame, fps, config: { damping: 12 } });
+  const link = spring({ frame: frame - 10, fps, config: { damping: 10 } });
+  const bounce = Math.abs(Math.sin(frame / 6)) * 26;
+  return (
+    <AbsoluteFill>
+      <Confetti />
+      <AbsoluteFill style={{ ...center, gap: 44, paddingBottom: 420 }}>
+        <div style={{ transform: `scale(${logo})` }}>
+          <Logo scale={1.05} />
+        </div>
+        <div
+          style={{
+            transform: `scale(${link})`,
+            background: C.gold,
+            color: C.navy,
+            fontFamily: FONT,
+            fontWeight: 900,
+            fontSize: 68,
+            lineHeight: 1.1,
+            textAlign: 'center',
+            padding: '30px 48px',
+            borderRadius: 40,
+            boxShadow: '0 20px 50px rgba(0,0,0,0.35)',
+          }}
+        >
+          🔗 Link en la bio
+          <br />o en los comentarios
+        </div>
+        <div style={{ fontSize: 110, transform: `translateY(${bounce}px)` }}>👇</div>
+        <div style={{ fontFamily: FONT, fontWeight: 800, fontSize: 46, color: C.navy, background: C.white, padding: '12px 34px', borderRadius: 999, opacity: link }}>{SITE}</div>
+        <div style={{ fontFamily: FONT, fontWeight: 700, fontSize: 30, color: C.celeste, opacity: link }}>
+          Todos los días 22 a 23 hs · Solo +18 · Bases y condiciones en la bio
+        </div>
+      </AbsoluteFill>
+      <Sfx at={0} src="whoosh" />
+      <Sfx at={10} src="pop" />
     </AbsoluteFill>
   );
 }
@@ -586,6 +669,7 @@ const SCENES: Record<string, () => ReactNode> = {
   sign: SignScene,
   phone: PhoneScene,
   winner: WinnerScene,
+  cta: CtaScene,
 };
 
 export function Promo() {
@@ -602,7 +686,11 @@ export function Promo() {
             <SceneTransition duration={s.duration}>
               <Scene />
             </SceneTransition>
-            <Caption text={CAPTIONS[s.id]} />
+            {CAPTIONS[s.id].map(([text, at], i, all) => (
+              <Sequence key={at} from={at} durationInFrames={(all[i + 1]?.[1] ?? s.duration) - at} layout="none">
+                <Caption text={text} />
+              </Sequence>
+            ))}
             <Sequence from={s.voiceAt} layout="none">
               <Audio src={staticFile(s.voice)} volume={1} />
             </Sequence>

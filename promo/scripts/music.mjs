@@ -30,7 +30,7 @@ const saw = (ph) => 2 * (ph - Math.floor(ph + 0.5));
 // ---------------------------------------------------------------- música
 const BPM = 128;
 const beat = 60 / BPM;
-const LEN = 32;
+const LEN = 36;
 const music = new Float32Array(LEN * SR);
 const add = (t0, arr, gain = 1) => {
   const i0 = Math.round(t0 * SR);
